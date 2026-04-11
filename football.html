@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Футбольные Прогнозы</title>
+    <title>Футбольные Прогнозы — International</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         :root {
@@ -125,6 +125,8 @@
         /* Fonbet button */
         .fonbet-btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 14px; background: linear-gradient(135deg, #ff6b00, #ff8c00); border: none; border-radius: 10px; color: #fff; font-size: 15px; font-weight: 700; cursor: pointer; transition: all 0.2s; text-decoration: none; margin: 16px 0; }
         .fonbet-btn:hover { background: linear-gradient(135deg, #ff8c00, #ffa033); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(255,107,0,0.3); }
+        .version-switch { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; background: var(--card); border: 1px solid var(--border); border-radius: 20px; color: var(--text2); font-size: 12px; text-decoration: none; transition: all 0.2s; }
+        .version-switch:hover { background: var(--border); color: var(--text); }
 
         /* Score chips (top-5 most likely scores) */
         .score-chips { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
@@ -497,7 +499,10 @@
         $('#app').innerHTML = `
         <div class="container">
             <div class="header">
-                <h1>\u0424\u0443\u0442\u0431\u043E\u043B\u044C\u043D\u044B\u0435 \u041F\u0440\u043E\u0433\u043D\u043E\u0437\u044B</h1>
+                <div>
+                    <h1 style="margin-bottom:4px">\u0424\u0443\u0442\u0431\u043E\u043B\u044C\u043D\u044B\u0435 \u041F\u0440\u043E\u0433\u043D\u043E\u0437\u044B</h1>
+                    <a href="football_ru.html" class="version-switch">\u{1F1F7}\u{1F1FA} \u041F\u0435\u0440\u0435\u0439\u0442\u0438 \u043D\u0430 \u0440\u043E\u0441\u0441\u0438\u0439\u0441\u043A\u0443\u044E \u0432\u0435\u0440\u0441\u0438\u044E</a>
+                </div>
                 <div style="display:flex;align-items:center;gap:10px">
                     <button class="standings-btn" onclick="openStandings()">\uD83D\uDCCA \u0422\u0430\u0431\u043B\u0438\u0446\u0430</button>
                     <div class="header-right" id="updateInfo"></div>
