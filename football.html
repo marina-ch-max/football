@@ -282,7 +282,88 @@
         'Tambov': '\u0422\u0430\u043C\u0431\u043E\u0432',
         'Ufa': '\u0423\u0444\u0430',
     };
-    function ruName(name) { return RPL_NAMES_RU[name] || name; }
+    // Russian names for ALL major league teams (for Fonbet search)
+    const ALL_NAMES_RU = Object.assign({}, RPL_NAMES_RU, {
+        // Premier League
+        'Arsenal': '\u0410\u0440\u0441\u0435\u043D\u0430\u043B', 'Liverpool': '\u041B\u0438\u0432\u0435\u0440\u043F\u0443\u043B\u044C', 'Man City': '\u041C\u0430\u043D\u0447\u0435\u0441\u0442\u0435\u0440 \u0421\u0438\u0442\u0438',
+        'Manchester City': '\u041C\u0430\u043D\u0447\u0435\u0441\u0442\u0435\u0440 \u0421\u0438\u0442\u0438', 'Man United': '\u041C\u0430\u043D\u0447\u0435\u0441\u0442\u0435\u0440 \u042E\u043D\u0430\u0439\u0442\u0435\u0434',
+        'Manchester United': '\u041C\u0430\u043D\u0447\u0435\u0441\u0442\u0435\u0440 \u042E\u043D\u0430\u0439\u0442\u0435\u0434', 'Chelsea': '\u0427\u0435\u043B\u0441\u0438',
+        'Tottenham': '\u0422\u043E\u0442\u0442\u0435\u043D\u0445\u044D\u043C', 'Tottenham Hotspur': '\u0422\u043E\u0442\u0442\u0435\u043D\u0445\u044D\u043C',
+        'Newcastle': '\u041D\u044C\u044E\u043A\u0430\u0441\u043B', 'Newcastle United': '\u041D\u044C\u044E\u043A\u0430\u0441\u043B',
+        'Aston Villa': '\u0410\u0441\u0442\u043E\u043D \u0412\u0438\u043B\u043B\u0430', 'West Ham': '\u0412\u0435\u0441\u0442 \u0425\u044D\u043C',
+        'West Ham United': '\u0412\u0435\u0441\u0442 \u0425\u044D\u043C', 'Brighton': '\u0411\u0440\u0430\u0439\u0442\u043E\u043D',
+        'Brighton Hove': '\u0411\u0440\u0430\u0439\u0442\u043E\u043D', 'Brighton & Hove Albion': '\u0411\u0440\u0430\u0439\u0442\u043E\u043D',
+        'Bournemouth': '\u0411\u043E\u0440\u043D\u043C\u0443\u0442', 'AFC Bournemouth': '\u0411\u043E\u0440\u043D\u043C\u0443\u0442',
+        'Crystal Palace': '\u041A\u0440\u0438\u0441\u0442\u0430\u043B \u041F\u044D\u043B\u0430\u0441', 'Fulham': '\u0424\u0443\u043B\u0445\u044D\u043C',
+        'Wolves': '\u0412\u0443\u043B\u0432\u0435\u0440\u0445\u044D\u043C\u043F\u0442\u043E\u043D', 'Wolverhampton': '\u0412\u0443\u043B\u0432\u0435\u0440\u0445\u044D\u043C\u043F\u0442\u043E\u043D',
+        'Wolverhampton Wanderers': '\u0412\u0443\u043B\u0432\u0435\u0440\u0445\u044D\u043C\u043F\u0442\u043E\u043D',
+        'Brentford': '\u0411\u0440\u0435\u043D\u0442\u0444\u043E\u0440\u0434', 'Everton': '\u042D\u0432\u0435\u0440\u0442\u043E\u043D',
+        'Nottingham': '\u041D\u043E\u0442\u0442\u0438\u043D\u0433\u0435\u043C \u0424\u043E\u0440\u0435\u0441\u0442',
+        'Nottingham Forest': '\u041D\u043E\u0442\u0442\u0438\u043D\u0433\u0435\u043C \u0424\u043E\u0440\u0435\u0441\u0442',
+        'Burnley': '\u0411\u0435\u0440\u043D\u043B\u0438', 'Luton': '\u041B\u0443\u0442\u043E\u043D', 'Luton Town': '\u041B\u0443\u0442\u043E\u043D',
+        'Sheffield': '\u0428\u0435\u0444\u0444\u0438\u043B\u0434', 'Sheffield United': '\u0428\u0435\u0444\u0444\u0438\u043B\u0434',
+        'Ipswich': '\u0418\u043F\u0441\u0432\u0438\u0447', 'Ipswich Town': '\u0418\u043F\u0441\u0432\u0438\u0447',
+        'Leicester': '\u041B\u0435\u0441\u0442\u0435\u0440', 'Leicester City': '\u041B\u0435\u0441\u0442\u0435\u0440',
+        'Southampton': '\u0421\u0430\u0443\u0442\u0433\u0435\u043C\u043F\u0442\u043E\u043D',
+        'Leeds United': '\u041B\u0438\u0434\u0441', 'Sunderland': '\u0421\u0430\u043D\u0434\u0435\u0440\u043B\u0435\u043D\u0434',
+        // La Liga
+        'Real Madrid': '\u0420\u0435\u0430\u043B \u041C\u0430\u0434\u0440\u0438\u0434', 'Barcelona': '\u0411\u0430\u0440\u0441\u0435\u043B\u043E\u043D\u0430',
+        'Atletico Madrid': '\u0410\u0442\u043B\u0435\u0442\u0438\u043A\u043E \u041C\u0430\u0434\u0440\u0438\u0434',
+        'Athletic Bilbao': '\u0410\u0442\u043B\u0435\u0442\u0438\u043A \u0411\u0438\u043B\u044C\u0431\u0430\u043E',
+        'Athletic Club': '\u0410\u0442\u043B\u0435\u0442\u0438\u043A \u0411\u0438\u043B\u044C\u0431\u0430\u043E',
+        'Real Sociedad': '\u0420\u0435\u0430\u043B \u0421\u043E\u0441\u044C\u0435\u0434\u0430\u0434', 'Sevilla': '\u0421\u0435\u0432\u0438\u043B\u044C\u044F',
+        'Valencia': '\u0412\u0430\u043B\u0435\u043D\u0441\u0438\u044F', 'Villarreal': '\u0412\u0438\u043B\u044C\u044F\u0440\u0440\u0435\u0430\u043B',
+        'Real Betis': '\u0411\u0435\u0442\u0438\u0441', 'Celta Vigo': '\u0421\u0435\u043B\u044C\u0442\u0430',
+        'Osasuna': '\u041E\u0441\u0430\u0441\u0443\u043D\u0430', 'Mallorca': '\u041C\u0430\u043B\u044C\u043E\u0440\u043A\u0430',
+        'Girona': '\u0416\u0438\u0440\u043E\u043D\u0430', 'Getafe': '\u0425\u0435\u0442\u0430\u0444\u0435',
+        'Las Palmas': '\u041B\u0430\u0441 \u041F\u0430\u043B\u044C\u043C\u0430\u0441', 'Rayo Vallecano': '\u0420\u0430\u0439\u043E \u0412\u0430\u043B\u044C\u0435\u043A\u0430\u043D\u043E',
+        'Alaves': '\u0410\u043B\u0430\u0432\u0435\u0441', 'Cadiz': '\u041A\u0430\u0434\u0438\u0441', 'Granada': '\u0413\u0440\u0430\u043D\u0430\u0434\u0430',
+        'Almeria': '\u0410\u043B\u044C\u043C\u0435\u0440\u0438\u044F', 'Espanyol': '\u042D\u0441\u043F\u0430\u043D\u044C\u043E\u043B',
+        'Leganes': '\u041B\u0435\u0433\u0430\u043D\u0435\u0441', 'Real Valladolid': '\u0412\u0430\u043B\u044C\u044F\u0434\u043E\u043B\u0438\u0434',
+        // Serie A
+        'Inter Milan': '\u0418\u043D\u0442\u0435\u0440', 'AC Milan': '\u041C\u0438\u043B\u0430\u043D', 'Juventus': '\u042E\u0432\u0435\u043D\u0442\u0443\u0441',
+        'Napoli': '\u041D\u0430\u043F\u043E\u043B\u0438', 'AS Roma': '\u0420\u043E\u043C\u0430', 'Roma': '\u0420\u043E\u043C\u0430', 'Lazio': '\u041B\u0430\u0446\u0438\u043E',
+        'Atalanta': '\u0410\u0442\u0430\u043B\u0430\u043D\u0442\u0430', 'Fiorentina': '\u0424\u0438\u043E\u0440\u0435\u043D\u0442\u0438\u043D\u0430',
+        'Bologna': '\u0411\u043E\u043B\u043E\u043D\u044C\u044F', 'Torino': '\u0422\u043E\u0440\u0438\u043D\u043E', 'Monza': '\u041C\u043E\u043D\u0446\u0430',
+        'Genoa': '\u0414\u0436\u0435\u043D\u043E\u0430', 'Cagliari': '\u041A\u0430\u043B\u044C\u044F\u0440\u0438', 'Udinese': '\u0423\u0434\u0438\u043D\u0435\u0437\u0435',
+        'Empoli': '\u042D\u043C\u043F\u043E\u043B\u0438', 'Frosinone': '\u0424\u0440\u043E\u0437\u0438\u043D\u043E\u043D\u0435', 'Lecce': '\u041B\u0435\u0447\u0447\u0435',
+        'Sassuolo': '\u0421\u0430\u0441\u0441\u0443\u043E\u043B\u043E', 'Salernitana': '\u0421\u0430\u043B\u0435\u0440\u043D\u0438\u0442\u0430\u043D\u0430',
+        'Verona': '\u0412\u0435\u0440\u043E\u043D\u0430', 'Hellas Verona': '\u0412\u0435\u0440\u043E\u043D\u0430',
+        'Parma': '\u041F\u0430\u0440\u043C\u0430', 'Como': '\u041A\u043E\u043C\u043E', 'Venezia': '\u0412\u0435\u043D\u0435\u0446\u0438\u044F',
+        // Bundesliga
+        'Bayern Munich': '\u0411\u0430\u0432\u0430\u0440\u0438\u044F', 'Bayern': '\u0411\u0430\u0432\u0430\u0440\u0438\u044F',
+        'Borussia Dortmund': '\u0411\u043E\u0440\u0443\u0441\u0441\u0438\u044F \u0414', 'Dortmund': '\u0411\u043E\u0440\u0443\u0441\u0441\u0438\u044F \u0414',
+        'Bayer Leverkusen': '\u041B\u0435\u0432\u0435\u0440\u043A\u0443\u0437\u0435\u043D', 'Leverkusen': '\u041B\u0435\u0432\u0435\u0440\u043A\u0443\u0437\u0435\u043D',
+        'RB Leipzig': '\u041B\u0435\u0439\u043F\u0446\u0438\u0433', 'Leipzig': '\u041B\u0435\u0439\u043F\u0446\u0438\u0433',
+        'VfB Stuttgart': '\u0428\u0442\u0443\u0442\u0433\u0430\u0440\u0442', 'Stuttgart': '\u0428\u0442\u0443\u0442\u0433\u0430\u0440\u0442',
+        'Eintracht Frankfurt': '\u0424\u0440\u0430\u043D\u043A\u0444\u0443\u0440\u0442', 'Frankfurt': '\u0424\u0440\u0430\u043D\u043A\u0444\u0443\u0440\u0442',
+        'Wolfsburg': '\u0412\u043E\u043B\u044C\u0444\u0441\u0431\u0443\u0440\u0433', 'Freiburg': '\u0424\u0440\u0430\u0439\u0431\u0443\u0440\u0433',
+        'Hoffenheim': '\u0425\u043E\u0444\u0444\u0435\u043D\u0445\u0430\u0439\u043C', 'Union Berlin': '\u0423\u043D\u0438\u043E\u043D \u0411\u0435\u0440\u043B\u0438\u043D',
+        'Werder Bremen': '\u0412\u0435\u0440\u0434\u0435\u0440', 'Augsburg': '\u0410\u0443\u0433\u0441\u0431\u0443\u0440\u0433',
+        'Mainz': '\u041C\u0430\u0439\u043D\u0446', 'Mainz 05': '\u041C\u0430\u0439\u043D\u0446',
+        'Borussia Monchengladbach': '\u0411\u043E\u0440\u0443\u0441\u0441\u0438\u044F \u041C', 'Monchengladbach': '\u0411\u043E\u0440\u0443\u0441\u0441\u0438\u044F \u041C',
+        'Heidenheim': '\u0425\u0430\u0439\u0434\u0435\u043D\u0445\u0430\u0439\u043C', 'Darmstadt': '\u0414\u0430\u0440\u043C\u0448\u0442\u0430\u0434\u0442',
+        'Koln': '\u041A\u0451\u043B\u044C\u043D', '1. FC Koln': '\u041A\u0451\u043B\u044C\u043D',
+        'Bochum': '\u0411\u043E\u0445\u0443\u043C', 'St. Pauli': '\u0421\u0430\u043D\u043A\u0442-\u041F\u0430\u0443\u043B\u0438',
+        'Holstein Kiel': '\u0425\u043E\u043B\u044C\u0448\u0442\u0430\u0439\u043D \u041A\u0438\u043B\u044C',
+        // Ligue 1
+        'Paris Saint-Germain': '\u041F\u0421\u0416', 'PSG': '\u041F\u0421\u0416',
+        'Marseille': '\u041C\u0430\u0440\u0441\u0435\u043B\u044C', 'Olympique Marseille': '\u041C\u0430\u0440\u0441\u0435\u043B\u044C',
+        'Monaco': '\u041C\u043E\u043D\u0430\u043A\u043E', 'AS Monaco': '\u041C\u043E\u043D\u0430\u043A\u043E',
+        'Lyon': '\u041B\u0438\u043E\u043D', 'Olympique Lyon': '\u041B\u0438\u043E\u043D', 'Olympique Lyonnais': '\u041B\u0438\u043E\u043D',
+        'Lille': '\u041B\u0438\u043B\u043B\u044C', 'Nice': '\u041D\u0438\u0446\u0446\u0430', 'Lens': '\u041B\u0430\u043D\u0441',
+        'Rennes': '\u0420\u0435\u043D\u043D', 'Stade Rennais': '\u0420\u0435\u043D\u043D', 'Strasbourg': '\u0421\u0442\u0440\u0430\u0441\u0431\u0443\u0440',
+        'Toulouse': '\u0422\u0443\u043B\u0443\u0437\u0430', 'Nantes': '\u041D\u0430\u043D\u0442', 'Montpellier': '\u041C\u043E\u043D\u043F\u0435\u043B\u044C\u0435',
+        'Reims': '\u0420\u0435\u0439\u043C\u0441', 'Brest': '\u0411\u0440\u0435\u0441\u0442', 'Le Havre': '\u041B\u0435 \u0410\u0432\u0440',
+        'Lorient': '\u041B\u043E\u0440\u044C\u044F\u043D', 'Clermont': '\u041A\u043B\u0435\u0440\u043C\u043E\u043D', 'Metz': '\u041C\u0435\u0442\u0446',
+        'Saint-Etienne': '\u0421\u0435\u043D\u0442-\u042D\u0442\u044C\u0435\u043D', 'Angers': '\u0410\u043D\u0436\u0435', 'Auxerre': '\u041E\u0441\u0435\u0440',
+        // Champions League
+        'Paris': '\u041F\u0421\u0416', 'Benfica': '\u0411\u0435\u043D\u0444\u0438\u043A\u0430', 'Porto': '\u041F\u043E\u0440\u0442\u0443',
+        'Sporting CP': '\u0421\u043F\u043E\u0440\u0442\u0438\u043D\u0433', 'Ajax': '\u0410\u044F\u043A\u0441',
+        'PSV': '\u041F\u0421\u0412', 'PSV Eindhoven': '\u041F\u0421\u0412',
+        'Celtic': '\u0421\u0435\u043B\u0442\u0438\u043A', 'Club Brugge': '\u0411\u0440\u044E\u0433\u0433\u0435',
+    });
+    function ruName(name) { return regionMode === 'ru' ? (ALL_NAMES_RU[name] || name) : name; }
 
     function toggleRegion() {
         regionMode = regionMode === 'ru' ? 'int' : 'ru';
@@ -719,14 +800,15 @@
         const rows = matches.map((m, idx) => {
             const matchOdds = findOddsForMatch(m, oddsData);
             const s = calcMatchSummary(m, data, matchOdds);
-            const fonbetDomain = regionMode === 'ru' ? 'fonbet.ru' : 'fon.bet';
+            const hName = ruName(m.homeTeam.name);
+            const aName = ruName(m.awayTeam.name);
+            const fonbetSearch = encodeURIComponent(hName + ' ' + aName);
             const evText = s.evBest > 0.08 ? `<span class="ev-tag">EV +${(s.evBest*100).toFixed(0)}% ${s.evLabel}</span>` : '';
-            const betTip = s.evBest > 0.08 ? s.evLabel : '';
             return `<div class="summary-row">
                 <div class="sr-time">${formatDate(m.utcDate)}<br><b>${formatTime(m.utcDate)}</b></div>
                 <div class="sr-teams">
-                    <div>${m.homeTeam.name} <span class="sr-pos">(${s.homePos})</span></div>
-                    <div>${m.awayTeam.name} <span class="sr-pos">(${s.awayPos})</span></div>
+                    <div>${hName} <span class="sr-pos">(${s.homePos})</span></div>
+                    <div>${aName} <span class="sr-pos">(${s.awayPos})</span></div>
                 </div>
                 <div class="sr-model">
                     <div class="sr-xg">${s.homeXG.toFixed(1)} - ${s.awayXG.toFixed(1)}</div>
@@ -735,7 +817,7 @@
                 <div class="sr-verdict"><span class="${s.verdictClass}">${s.verdictLabel}</span>${evText}</div>
                 <div class="sr-actions">
                     <button class="btn btn-green btn-sm" onclick="event.stopPropagation();openPrediction(${idx},'${leagueCode}')">\u041F\u0440\u043E\u0433\u043D\u043E\u0437</button>
-                    <a class="btn btn-orange btn-sm" href="https://${fonbetDomain}/sports/football/" target="_blank" rel="noopener" onclick="event.stopPropagation()">\u0424\u043E\u043D\u0431\u0435\u0442</a>
+                    <a class="btn btn-orange btn-sm" href="https://fon.bet/search/${fonbetSearch}" target="_blank" rel="noopener" onclick="event.stopPropagation()">\u0424\u043E\u043D\u0431\u0435\u0442</a>
                 </div>
             </div>`;
         }).join('');
@@ -1056,12 +1138,9 @@
 
             ${renderVerdictHTML(outcomes, hElo, aElo, homeForm, awayForm, matchOdds, h2hAll, home.id)}
 
-            <a class="fonbet-btn" href="https://${regionMode === 'ru' ? 'fonbet.ru' : 'fon.bet'}/sports/football/" target="_blank" rel="noopener">
-                &#9917; \u041E\u0442\u043A\u0440\u044B\u0442\u044C \u0424\u043E\u043D\u0431\u0435\u0442
+            <a class="fonbet-btn" href="https://fon.bet/search/${encodeURIComponent(ruName(home.name) + ' ' + ruName(away.name))}" target="_blank" rel="noopener">
+                &#9917; \u0421\u0442\u0430\u0432\u0438\u0442\u044C \u0432 \u0424\u043E\u043D\u0431\u0435\u0442: ${ruName(home.name)} \u2014 ${ruName(away.name)}
             </a>
-            <div style="text-align:center;font-size:12px;color:var(--text2);margin-top:-10px;margin-bottom:12px">
-                \u041D\u0430\u0439\u0434\u0438\u0442\u0435 \u043C\u0430\u0442\u0447: <b style="color:var(--text)">${regionMode === 'ru' ? ruName(home.name) : home.name} \u2014 ${regionMode === 'ru' ? ruName(away.name) : away.name}</b>
-            </div>
 
             <p style="font-size:11px;color:var(--text2);text-align:center;margin-top:16px">
 \u041C\u043E\u0434\u0435\u043B\u044C: Dixon-Coles + Elo. \u0423\u0447\u0438\u0442\u044B\u0432\u0430\u0435\u0442 \u0441\u0438\u043B\u0443 \u0430\u0442\u0430\u043A\u0438/\u0437\u0430\u0449\u0438\u0442\u044B, \u0434\u043E\u043C\u0430\u0448\u043D\u0435\u0435 \u043F\u0440\u0435\u0438\u043C\u0443\u0449\u0435\u0441\u0442\u0432\u043E, \u043A\u043E\u0440\u0440\u0435\u043B\u044F\u0446\u0438\u044E \u043D\u0438\u0437\u043A\u0438\u0445 \u0441\u0447\u0435\u0442\u043E\u0432 \u0438 \u0434\u0438\u043D\u0430\u043C\u0438\u043A\u0443 \u0444\u043E\u0440\u043C\u044B. \u042D\u0442\u043E \u043C\u0430\u0442\u0435\u043C\u0430\u0442\u0438\u0447\u0435\u0441\u043A\u0430\u044F \u043E\u0446\u0435\u043D\u043A\u0430, \u0430 \u043D\u0435 \u0433\u0430\u0440\u0430\u043D\u0442\u0438\u044F.
@@ -1426,8 +1505,7 @@
                         <span>EV: <b style="color:var(--green)">+${(s.evBest*100).toFixed(0)}%</b></span>
                         ${kelly > 0.01 ? `<span>Kelly: <b style="color:var(--blue)">${(kelly*100).toFixed(1)}%</b></span>` : ''}
                     </div>
-                    <a class="btn btn-orange btn-sm" style="display:inline-block;padding:6px 16px" href="https://${fonbetDomain}/sports/football/" target="_blank" rel="noopener">\u26BD \u0424\u043E\u043D\u0431\u0435\u0442</a>
-                    <span style="font-size:11px;color:var(--text2);margin-left:8px">\u041D\u0430\u0439\u0434\u0438\u0442\u0435: ${hName} \u2014 ${aName}</span>
+                    <a class="btn btn-orange btn-sm" style="display:inline-block;padding:6px 16px" href="https://fon.bet/search/${encodeURIComponent(hName + ' ' + aName)}" target="_blank" rel="noopener">\u26BD ${hName} \u2014 ${aName}</a>
                 </div>`;
             }).join('');
         }
