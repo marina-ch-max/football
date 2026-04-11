@@ -720,8 +720,8 @@
             const matchOdds = findOddsForMatch(m, oddsData);
             const s = calcMatchSummary(m, data, matchOdds);
             const fonbetDomain = regionMode === 'ru' ? 'fonbet.ru' : 'fon.bet';
-            const fonbetQuery = regionMode === 'ru' ? ruName(m.homeTeam.name) + ' ' + ruName(m.awayTeam.name) : m.homeTeam.name;
-            const evText = s.evBest > 0.08 ? `<span class="ev-tag">EV +${(s.evBest*100).toFixed(0)}%</span>` : '';
+            const evText = s.evBest > 0.08 ? `<span class="ev-tag">EV +${(s.evBest*100).toFixed(0)}% ${s.evLabel}</span>` : '';
+            const betTip = s.evBest > 0.08 ? s.evLabel : '';
             return `<div class="summary-row">
                 <div class="sr-time">${formatDate(m.utcDate)}<br><b>${formatTime(m.utcDate)}</b></div>
                 <div class="sr-teams">
@@ -735,7 +735,7 @@
                 <div class="sr-verdict"><span class="${s.verdictClass}">${s.verdictLabel}</span>${evText}</div>
                 <div class="sr-actions">
                     <button class="btn btn-green btn-sm" onclick="event.stopPropagation();openPrediction(${idx},'${leagueCode}')">\u041F\u0440\u043E\u0433\u043D\u043E\u0437</button>
-                    <a class="btn btn-orange btn-sm" href="https://${fonbetDomain}/search/?query=${encodeURIComponent(fonbetQuery)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">\u0424\u043E\u043D\u0431\u0435\u0442</a>
+                    <a class="btn btn-orange btn-sm" href="https://${fonbetDomain}/sports/football/" target="_blank" rel="noopener" onclick="event.stopPropagation()">\u0424\u043E\u043D\u0431\u0435\u0442</a>
                 </div>
             </div>`;
         }).join('');
@@ -1056,9 +1056,12 @@
 
             ${renderVerdictHTML(outcomes, hElo, aElo, homeForm, awayForm, matchOdds, h2hAll, home.id)}
 
-            <a class="fonbet-btn" href="https://${regionMode === 'ru' ? 'fonbet.ru' : 'fon.bet'}/search/?query=${encodeURIComponent(regionMode === 'ru' ? ruName(home.name) + ' ' + ruName(away.name) : home.name)}" target="_blank" rel="noopener">
-                &#9917; \u041F\u043E\u0441\u0442\u0430\u0432\u0438\u0442\u044C \u0432 \u0424\u043E\u043D\u0431\u0435\u0442
+            <a class="fonbet-btn" href="https://${regionMode === 'ru' ? 'fonbet.ru' : 'fon.bet'}/sports/football/" target="_blank" rel="noopener">
+                &#9917; \u041E\u0442\u043A\u0440\u044B\u0442\u044C \u0424\u043E\u043D\u0431\u0435\u0442
             </a>
+            <div style="text-align:center;font-size:12px;color:var(--text2);margin-top:-10px;margin-bottom:12px">
+                \u041D\u0430\u0439\u0434\u0438\u0442\u0435 \u043C\u0430\u0442\u0447: <b style="color:var(--text)">${regionMode === 'ru' ? ruName(home.name) : home.name} \u2014 ${regionMode === 'ru' ? ruName(away.name) : away.name}</b>
+            </div>
 
             <p style="font-size:11px;color:var(--text2);text-align:center;margin-top:16px">
 \u041C\u043E\u0434\u0435\u043B\u044C: Dixon-Coles + Elo. \u0423\u0447\u0438\u0442\u044B\u0432\u0430\u0435\u0442 \u0441\u0438\u043B\u0443 \u0430\u0442\u0430\u043A\u0438/\u0437\u0430\u0449\u0438\u0442\u044B, \u0434\u043E\u043C\u0430\u0448\u043D\u0435\u0435 \u043F\u0440\u0435\u0438\u043C\u0443\u0449\u0435\u0441\u0442\u0432\u043E, \u043A\u043E\u0440\u0440\u0435\u043B\u044F\u0446\u0438\u044E \u043D\u0438\u0437\u043A\u0438\u0445 \u0441\u0447\u0435\u0442\u043E\u0432 \u0438 \u0434\u0438\u043D\u0430\u043C\u0438\u043A\u0443 \u0444\u043E\u0440\u043C\u044B. \u042D\u0442\u043E \u043C\u0430\u0442\u0435\u043C\u0430\u0442\u0438\u0447\u0435\u0441\u043A\u0430\u044F \u043E\u0446\u0435\u043D\u043A\u0430, \u0430 \u043D\u0435 \u0433\u0430\u0440\u0430\u043D\u0442\u0438\u044F.
@@ -1407,7 +1410,8 @@
                 const s = b.summary;
                 const m = b.match;
                 const fonbetDomain = regionMode === 'ru' ? 'fonbet.ru' : 'fon.bet';
-                const fonbetQuery = regionMode === 'ru' ? ruName(m.homeTeam.name) + ' ' + ruName(m.awayTeam.name) : m.homeTeam.name;
+                const hName = regionMode === 'ru' ? ruName(m.homeTeam.name) : m.homeTeam.name;
+                const aName = regionMode === 'ru' ? ruName(m.awayTeam.name) : m.awayTeam.name;
                 const kellyRaw = s.evBest > 0 ? (s.evBest / (s.favP > 0 ? (1/s.favP - 1) : 1)) * 0.5 : 0;
                 const kelly = Math.min(kellyRaw, 0.05);
                 return `<div style="padding:12px;border-bottom:1px solid var(--border)">
@@ -1415,13 +1419,15 @@
                         <span style="font-size:11px;color:var(--text2)">${b.league.flag} ${b.league.name} \u2022 ${formatTime(m.utcDate)}</span>
                         <span class="v-bet">\u0421\u0422\u0410\u0412\u042c</span>
                     </div>
-                    <div style="font-size:14px;font-weight:600;margin-bottom:6px">${m.homeTeam.name} <span class="sr-pos">(${s.homePos})</span> \u2014 ${m.awayTeam.name} <span class="sr-pos">(${s.awayPos})</span></div>
-                    <div style="display:flex;gap:12px;font-size:12px;color:var(--text2);margin-bottom:8px">
+                    <div style="font-size:14px;font-weight:600;margin-bottom:6px">${hName} <span class="sr-pos">(${s.homePos})</span> \u2014 ${aName} <span class="sr-pos">(${s.awayPos})</span></div>
+                    <div style="display:flex;gap:12px;font-size:12px;color:var(--text2);margin-bottom:8px;flex-wrap:wrap">
                         <span>xG: ${s.homeXG.toFixed(1)}-${s.awayXG.toFixed(1)}</span>
-                        <span>EV: <b style="color:var(--green)">+${(s.evBest*100).toFixed(0)}%</b> (${s.evLabel})</span>
+                        <span>\u0421\u0442\u0430\u0432\u043A\u0430: <b style="color:var(--green)">${s.evLabel}</b></span>
+                        <span>EV: <b style="color:var(--green)">+${(s.evBest*100).toFixed(0)}%</b></span>
                         ${kelly > 0.01 ? `<span>Kelly: <b style="color:var(--blue)">${(kelly*100).toFixed(1)}%</b></span>` : ''}
                     </div>
-                    <a class="btn btn-orange btn-sm" style="display:inline-block;padding:6px 16px" href="https://${fonbetDomain}/search/?query=${encodeURIComponent(fonbetQuery)}" target="_blank" rel="noopener">\u26BD \u0424\u043E\u043D\u0431\u0435\u0442</a>
+                    <a class="btn btn-orange btn-sm" style="display:inline-block;padding:6px 16px" href="https://${fonbetDomain}/sports/football/" target="_blank" rel="noopener">\u26BD \u0424\u043E\u043D\u0431\u0435\u0442</a>
+                    <span style="font-size:11px;color:var(--text2);margin-left:8px">\u041D\u0430\u0439\u0434\u0438\u0442\u0435: ${hName} \u2014 ${aName}</span>
                 </div>`;
             }).join('');
         }
