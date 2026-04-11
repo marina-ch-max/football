@@ -11,7 +11,7 @@ API_FOOTBALL_KEY = os.environ.get('API_FOOTBALL_KEY', '')
 ODDS_API_KEY = os.environ.get('ODDS_API_KEY', '')
 API_BASE = 'https://api.football-data.org/v4'
 ODDS_API_BASE = 'https://api.the-odds-api.com/v4'
-LEAGUES = ['PL', 'PD', 'SA', 'BL1', 'FL1', 'CL']
+LEAGUES = ['PL', 'PD', 'SA', 'BL1', 'FL1', 'CL', 'RPL']
 DATA_DIR = 'data'
 
 LEAGUE_TO_SPORT = {
@@ -427,6 +427,7 @@ def main():
     for code in LEAGUES:
         print(f'Fetching {code}...')
         league_data = {'code': code, 'updated': today, 'matches': [], 'standings': [], 'finished': []}
+        name_fn = rpl_ru_name if code == 'RPL' else lambda x: x
 
         # 1. Scheduled matches
         try:
@@ -439,12 +440,12 @@ def main():
                     'matchday': m.get('matchday'),
                     'homeTeam': {
                         'id': m['homeTeam']['id'],
-                        'name': m['homeTeam'].get('shortName') or m['homeTeam']['name'],
+                        'name': name_fn(m['homeTeam'].get('shortName') or m['homeTeam']['name']),
                         'crest': m['homeTeam'].get('crest', '')
                     },
                     'awayTeam': {
                         'id': m['awayTeam']['id'],
-                        'name': m['awayTeam'].get('shortName') or m['awayTeam']['name'],
+                        'name': name_fn(m['awayTeam'].get('shortName') or m['awayTeam']['name']),
                         'crest': m['awayTeam'].get('crest', '')
                     }
                 })
@@ -462,7 +463,7 @@ def main():
                     for row in s.get('table', []):
                         league_data['standings'].append({
                             'id': row['team']['id'],
-                            'name': row['team'].get('shortName') or row['team']['name'],
+                            'name': name_fn(row['team'].get('shortName') or row['team']['name']),
                             'crest': row['team'].get('crest', ''),
                             'pos': row['position'],
                             'played': row['playedGames'],
@@ -488,8 +489,8 @@ def main():
                 league_data['finished'].append({
                     'id': m['id'],
                     'utcDate': m['utcDate'],
-                    'homeTeam': {'id': m['homeTeam']['id'], 'name': m['homeTeam'].get('shortName') or m['homeTeam']['name']},
-                    'awayTeam': {'id': m['awayTeam']['id'], 'name': m['awayTeam'].get('shortName') or m['awayTeam']['name']},
+                    'homeTeam': {'id': m['homeTeam']['id'], 'name': name_fn(m['homeTeam'].get('shortName') or m['homeTeam']['name'])},
+                    'awayTeam': {'id': m['awayTeam']['id'], 'name': name_fn(m['awayTeam'].get('shortName') or m['awayTeam']['name'])},
                     'homeGoals': m['score']['fullTime']['home'],
                     'awayGoals': m['score']['fullTime']['away']
                 })
@@ -504,13 +505,6 @@ def main():
         with open(filepath, 'w', encoding='utf-8') as f:
             json.dump(league_data, f, ensure_ascii=False)
         print(f'  Saved to {filepath}')
-
-    # Fetch RPL from API-Football
-    if API_FOOTBALL_KEY:
-        print('Fetching RPL from API-Football...')
-        fetch_rpl()
-    else:
-        print('API_FOOTBALL_KEY not set, skipping RPL')
 
     # Fetch odds from The Odds API
     if ODDS_API_KEY:
