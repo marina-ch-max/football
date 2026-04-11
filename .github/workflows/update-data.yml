@@ -2,7 +2,7 @@ name: Update Football Data
 
 on:
   schedule:
-    - cron: '15 5,11,17,23 * * *'  # Every 6 hours
+    - cron: '15 * * * *'  # Every 6 hours
   workflow_dispatch:  # Manual trigger
 
 permissions:
