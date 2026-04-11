@@ -672,16 +672,27 @@
             }
         }
 
-        // Verdict checks (same logic as renderVerdictHTML)
+        // Verdict checks (must match renderVerdictHTML exactly)
         const maxP = Math.max(outcomes.p1, outcomes.pX, outcomes.p2);
         const favForm = outcomes.p1 >= outcomes.p2 ? homeFormAll : awayFormAll;
         const wins = favForm.filter(r => r === 'W').length;
         let passed = 0;
-        if (maxP >= 0.45) passed++;
+        if (maxP > 0.55) passed++;
         if (hasValue) passed++;
         if (wins >= 3) passed++;
         if (Math.abs(hElo - aElo) > 80) passed++;
-        if (h2hAll.length >= 2) passed++;
+        // H2H: favorite must have won 2+ of last 3 h2h matches
+        let h2hOk = false;
+        if (h2hAll.length >= 2) {
+            const favId = outcomes.p1 >= outcomes.p2 ? home.id : null;
+            let favWins = 0;
+            for (const m of h2hAll.slice(0, 3)) {
+                if (favId && m.homeTeam.id === favId && m.homeGoals > m.awayGoals) favWins++;
+                else if (favId && m.awayTeam.id === favId && m.awayGoals > m.homeGoals) favWins++;
+            }
+            h2hOk = favWins >= 2;
+        }
+        if (h2hOk) passed++;
         const noTrap = !(maxP < 0.45 && Math.min(outcomes.p1, outcomes.pX, outcomes.p2) > 0.20);
         if (noTrap) passed++;
 
