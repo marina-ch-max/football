@@ -289,6 +289,45 @@ def get_odds_leagues():
 
 # ==================== RPL ====================
 
+RPL_NAMES_RU = {
+    'Zenit Saint Petersburg': '\u0417\u0435\u043D\u0438\u0442',
+    'Zenit St. Petersburg': '\u0417\u0435\u043D\u0438\u0442',
+    'Spartak Moscow': '\u0421\u043F\u0430\u0440\u0442\u0430\u043A \u041C\u043E\u0441\u043A\u0432\u0430',
+    'CSKA Moscow': '\u0426\u0421\u041A\u0410 \u041C\u043E\u0441\u043A\u0432\u0430',
+    'Lokomotiv Moscow': '\u041B\u043E\u043A\u043E\u043C\u043E\u0442\u0438\u0432 \u041C\u043E\u0441\u043A\u0432\u0430',
+    'Dynamo Moscow': '\u0414\u0438\u043D\u0430\u043C\u043E \u041C\u043E\u0441\u043A\u0432\u0430',
+    'FC Krasnodar': '\u041A\u0440\u0430\u0441\u043D\u043E\u0434\u0430\u0440',
+    'Krasnodar': '\u041A\u0440\u0430\u0441\u043D\u043E\u0434\u0430\u0440',
+    'Rostov': '\u0420\u043E\u0441\u0442\u043E\u0432',
+    'FK Rostov': '\u0420\u043E\u0441\u0442\u043E\u0432',
+    'Rubin Kazan': '\u0420\u0443\u0431\u0438\u043D \u041A\u0430\u0437\u0430\u043D\u044C',
+    'Akhmat Grozny': '\u0410\u0445\u043C\u0430\u0442 \u0413\u0440\u043E\u0437\u043D\u044B\u0439',
+    'Krylya Sovetov Samara': '\u041A\u0440\u044B\u043B\u044C\u044F \u0421\u043E\u0432\u0435\u0442\u043E\u0432',
+    'Krylya Sovetov': '\u041A\u0440\u044B\u043B\u044C\u044F \u0421\u043E\u0432\u0435\u0442\u043E\u0432',
+    'FC Ural': '\u0423\u0440\u0430\u043B',
+    'Ural': '\u0423\u0440\u0430\u043B',
+    'Fakel Voronezh': '\u0424\u0430\u043A\u0435\u043B \u0412\u043E\u0440\u043E\u043D\u0435\u0436',
+    'FC Orenburg': '\u041E\u0440\u0435\u043D\u0431\u0443\u0440\u0433',
+    'Orenburg': '\u041E\u0440\u0435\u043D\u0431\u0443\u0440\u0433',
+    'Nizhny Novgorod': '\u041D\u0438\u0436\u043D\u0438\u0439 \u041D\u043E\u0432\u0433\u043E\u0440\u043E\u0434',
+    'PFC Sochi': '\u0421\u043E\u0447\u0438',
+    'Sochi': '\u0421\u043E\u0447\u0438',
+    'Baltika Kaliningrad': '\u0411\u0430\u043B\u0442\u0438\u043A\u0430',
+    'Baltika': '\u0411\u0430\u043B\u0442\u0438\u043A\u0430',
+    'Pari Nizhny Novgorod': '\u041F\u0430\u0440\u0438 \u041D\u041D',
+    'Torpedo Moscow': '\u0422\u043E\u0440\u043F\u0435\u0434\u043E \u041C\u043E\u0441\u043A\u0432\u0430',
+    'Khimki': '\u0425\u0438\u043C\u043A\u0438',
+    'Arsenal Tula': '\u0410\u0440\u0441\u0435\u043D\u0430\u043B \u0422\u0443\u043B\u0430',
+    'Tambov': '\u0422\u0430\u043C\u0431\u043E\u0432',
+    'FC Ufa': '\u0423\u0444\u0430',
+    'Ufa': '\u0423\u0444\u0430',
+    'Akron Togliatti': '\u0410\u043A\u0440\u043E\u043D \u0422\u043E\u043B\u044C\u044F\u0442\u0442\u0438',
+    'Dinamo Makhachkala': '\u0414\u0438\u043D\u0430\u043C\u043E \u041C\u0430\u0445\u0430\u0447\u043A\u0430\u043B\u0430',
+}
+
+def rpl_ru_name(name):
+    return RPL_NAMES_RU.get(name, name)
+
 def fetch_rpl():
     """Fetch Russian Premier League data from API-Football."""
     today = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
@@ -307,12 +346,12 @@ def fetch_rpl():
                 'matchday': f.get('league', {}).get('round', ''),
                 'homeTeam': {
                     'id': f['teams']['home']['id'],
-                    'name': f['teams']['home']['name'],
+                    'name': rpl_ru_name(f['teams']['home']['name']),
                     'crest': f['teams']['home'].get('logo', '')
                 },
                 'awayTeam': {
                     'id': f['teams']['away']['id'],
-                    'name': f['teams']['away']['name'],
+                    'name': rpl_ru_name(f['teams']['away']['name']),
                     'crest': f['teams']['away'].get('logo', '')
                 }
             })
@@ -333,7 +372,7 @@ def fetch_rpl():
                         goals = all_stats.get('goals', {})
                         league_data['standings'].append({
                             'id': row['team']['id'],
-                            'name': row['team']['name'],
+                            'name': rpl_ru_name(row['team']['name']),
                             'crest': row['team'].get('logo', ''),
                             'pos': row['rank'],
                             'played': all_stats.get('played', 0),
@@ -362,8 +401,8 @@ def fetch_rpl():
             league_data['finished'].append({
                 'id': f['fixture']['id'],
                 'utcDate': f['fixture']['date'],
-                'homeTeam': {'id': f['teams']['home']['id'], 'name': f['teams']['home']['name']},
-                'awayTeam': {'id': f['teams']['away']['id'], 'name': f['teams']['away']['name']},
+                'homeTeam': {'id': f['teams']['home']['id'], 'name': rpl_ru_name(f['teams']['home']['name'])},
+                'awayTeam': {'id': f['teams']['away']['id'], 'name': rpl_ru_name(f['teams']['away']['name'])},
                 'homeGoals': goals.get('home', 0),
                 'awayGoals': goals.get('away', 0)
             })
