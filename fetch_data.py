@@ -336,13 +336,20 @@ def fetch_rpl():
     now = datetime.utcnow()
     season = now.year if now.month >= 7 else now.year - 1
 
-    # 1. Upcoming matches
+    # 1. Upcoming + Live matches
     try:
+        # Fetch scheduled (NS) matches
         fixtures = api_football_get(f'/fixtures?league=235&season={season}&status=NS&next=20')
-        for f in fixtures[:20]:
-            league_data['matches'].append({
+        # Also fetch live matches (1H, HT, 2H, ET, P, LIVE)
+        live_fixtures = api_football_get(f'/fixtures?league=235&season={season}&live=all') or []
+        all_fixtures = list(live_fixtures) + list(fixtures[:20])
+        for f in all_fixtures:
+            status_short = f['fixture'].get('status', {}).get('short', 'NS')
+            is_live = status_short in ('1H', 'HT', '2H', 'ET', 'P', 'LIVE')
+            match_entry = {
                 'id': f['fixture']['id'],
                 'utcDate': f['fixture']['date'],
+                'status': 'IN_PLAY' if is_live else 'SCHEDULED',
                 'matchday': f.get('league', {}).get('round', ''),
                 'homeTeam': {
                     'id': f['teams']['home']['id'],
@@ -354,8 +361,19 @@ def fetch_rpl():
                     'name': rpl_ru_name(f['teams']['away']['name']),
                     'crest': f['teams']['away'].get('logo', '')
                 }
-            })
-        print(f'  RPL: {len(league_data["matches"])} scheduled matches')
+            }
+            if is_live:
+                goals = f.get('goals', {})
+                match_entry['score'] = {
+                    'fullTime': {
+                        'home': goals.get('home', 0),
+                        'away': goals.get('away', 0)
+                    }
+                }
+                match_entry['minute'] = f['fixture'].get('status', {}).get('elapsed', '')
+            league_data['matches'].append(match_entry)
+        live_count = sum(1 for m in league_data['matches'] if m.get('status') == 'IN_PLAY')
+        print(f'  RPL: {len(league_data["matches"])} matches ({live_count} live)')
     except Exception as e:
         print(f'  RPL: Error fetching matches: {e}')
 
@@ -445,14 +463,15 @@ def main():
         league_data = {'code': code, 'updated': today, 'matches': [], 'standings': [], 'finished': []}
         name_fn = rpl_ru_name if code == 'RPL' else lambda x: x
 
-        # 1. Scheduled matches
+        # 1. Scheduled + Live matches
         try:
-            data = api_get(f'/competitions/{api_code}/matches?status=SCHEDULED')
+            data = api_get(f'/competitions/{api_code}/matches?status=SCHEDULED,IN_PLAY,PAUSED')
             matches = data.get('matches', [])
             for m in matches[:20]:
-                league_data['matches'].append({
+                match_entry = {
                     'id': m['id'],
                     'utcDate': m['utcDate'],
+                    'status': m.get('status', 'SCHEDULED'),
                     'matchday': m.get('matchday'),
                     'homeTeam': {
                         'id': m['homeTeam']['id'],
@@ -464,8 +483,20 @@ def main():
                         'name': name_fn(m['awayTeam'].get('shortName') or m['awayTeam']['name']),
                         'crest': m['awayTeam'].get('crest', '')
                     }
-                })
-            print(f'  {len(league_data["matches"])} scheduled matches')
+                }
+                # Add score for live matches
+                if m.get('status') in ('IN_PLAY', 'PAUSED'):
+                    score = m.get('score', {}).get('fullTime', {})
+                    match_entry['score'] = {
+                        'fullTime': {
+                            'home': score.get('home'),
+                            'away': score.get('away')
+                        }
+                    }
+                    match_entry['minute'] = m.get('minute', '')
+                league_data['matches'].append(match_entry)
+            live_count = sum(1 for m in league_data['matches'] if m.get('status') in ('IN_PLAY', 'PAUSED'))
+            print(f'  {len(league_data["matches"])} matches ({live_count} live)')
         except Exception as e:
             print(f'  Error fetching matches: {e}')
 
