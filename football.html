@@ -145,7 +145,7 @@
         .v-caution { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 700; background: #3d3a1a; color: var(--yellow); border: 1px solid var(--yellow); }
         .v-skip { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 700; background: #3d1a1a; color: var(--red); border: 1px solid var(--red); }
         .ev-tag { display: inline-block; padding: 1px 6px; border-radius: 8px; font-size: 9px; font-weight: 700; background: #1a2e1a; color: var(--green); margin-top: 2px; }
-        .sr-actions { width: 150px; flex-shrink: 0; display: flex; gap: 6px; justify-content: flex-end; }
+        .sr-actions { width: 120px; flex-shrink: 0; display: flex; gap: 6px; align-items: center; justify-content: flex-end; }
         .btn-orange { background: linear-gradient(135deg, #ff6b00, #ff8c00); color: #fff; text-decoration: none; }
         .btn-orange:hover { background: linear-gradient(135deg, #ff8c00, #ffa033); }
         @media (max-width: 600px) {
@@ -268,7 +268,8 @@
         .calc-result-single { background:#1a3d1a; border:1px solid var(--green); }
         .calc-result-express { background:#3d3a1a; border:1px solid var(--yellow); }
         /* My Bets */
-        .my-bet-badge { font-size:10px; background:var(--blue); color:#fff; padding:2px 6px; border-radius:4px; white-space:nowrap; }
+        .my-bet-badge { font-size:14px; width:30px; height:30px; display:flex; align-items:center; justify-content:center; background:var(--blue); color:#fff; border-radius:50%; cursor:pointer; position:relative; flex-shrink:0; }
+        .my-bet-badge:hover::after { content:attr(data-tip); position:absolute; bottom:110%; left:50%; transform:translateX(-50%); background:var(--card); border:1px solid var(--border); color:var(--text); font-size:11px; padding:4px 8px; border-radius:6px; white-space:nowrap; z-index:10; }
         .bet-form { padding:16px; }
         .bet-form-title { font-size:15px; font-weight:700; margin-bottom:12px; }
         .bet-outcome { display:flex; gap:8px; margin:12px 0; }
@@ -285,8 +286,8 @@
         .mybets-info { font-size:12px; color:var(--text2); margin-bottom:8px; }
         .btn-refresh { background:none; border:1px solid var(--border); color:var(--text2); border-radius:8px; padding:4px 10px; cursor:pointer; font-size:14px; }
         .btn-refresh:hover { border-color:var(--text); color:var(--text); }
-        .btn-bet-sm { font-size:10px; padding:3px 8px; border:1px solid var(--border); background:var(--bg2); color:var(--text2); border-radius:4px; cursor:pointer; white-space:nowrap; }
-        .btn-bet-sm:hover { border-color:var(--text); color:var(--text); }
+        .btn-bet-sm { font-size:14px; width:30px; height:30px; display:flex; align-items:center; justify-content:center; border:1px solid var(--border); background:var(--bg2); color:var(--text2); border-radius:50%; cursor:pointer; flex-shrink:0; padding:0; }
+        .btn-bet-sm:hover { border-color:var(--green); color:var(--green); background:rgba(0,230,118,0.05); }
         .btn-bet-cancel { font-size:10px; padding:2px 6px; border:none; background:transparent; color:var(--red); cursor:pointer; }
     </style>
 </head>
@@ -876,8 +877,8 @@
             const evText = s.evBest > 0.08 ? `<span class="ev-tag">EV +${(s.evBest*100).toFixed(0)}% ${s.evLabel}</span>` : '';
             const bet = getMyBetInfo(m.id);
             const betHTML = bet
-                ? `<span class="my-bet-badge" onclick="event.stopPropagation();openBetForm(${m.id},'${leagueCode}','${hName.replace(/'/g,"\\'")}','${aName.replace(/'/g,"\\'")}')">🎯 ${bet.outcome}${bet.amount ? ' '+bet.amount+'₽' : ''}</span>`
-                : `<button class="btn-bet-sm" onclick="event.stopPropagation();openBetForm(${m.id},'${leagueCode}','${hName.replace(/'/g,"\\'")}','${aName.replace(/'/g,"\\'")}')">\u042F \u043F\u043E\u0441\u0442\u0430\u0432\u0438\u043B</button>`;
+                ? `<span class="my-bet-badge" data-tip="${bet.outcome}${bet.amount ? ' '+bet.amount+'₽' : ''}" onclick="event.stopPropagation();openBetForm(${m.id},'${leagueCode}','${hName.replace(/'/g,"\\'")}','${aName.replace(/'/g,"\\'")}')">🎯</span>`
+                : `<button class="btn-bet-sm" title="\u042F \u043F\u043E\u0441\u0442\u0430\u0432\u0438\u043B" onclick="event.stopPropagation();openBetForm(${m.id},'${leagueCode}','${hName.replace(/'/g,"\\'")}','${aName.replace(/'/g,"\\'")}')">+</button>`;
             return `<div class="summary-row">
                 <div class="sr-time">${formatDate(m.utcDate)}<br><b>${formatTime(m.utcDate)}</b></div>
                 <div class="sr-teams">
@@ -892,7 +893,6 @@
                 <div class="sr-actions">
                     ${betHTML}
                     <button class="btn btn-green btn-sm" onclick="event.stopPropagation();openPredictionById(${m.id},'${leagueCode}')">\u041F\u0440\u043E\u0433\u043D\u043E\u0437</button>
-                    <a class="btn btn-orange btn-sm" href="${fonbetUrl()}" target="_blank" rel="noopener" onclick="event.stopPropagation()">\u0424\u043E\u043D\u0431\u0435\u0442</a>
                 </div>
             </div>`;
         }).join('');
