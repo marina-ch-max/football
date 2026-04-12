@@ -427,11 +427,15 @@ def main():
     for code in LEAGUES:
         print(f'Fetching {code}...')
 
-        # RPL: try football-data.org with code RFPL, fallback to API-Football
+        # RPL: use API-Football (api-sports.io) instead of football-data.org
         if code == 'RPL':
-            api_code = 'RFPL'
-        else:
-            api_code = code
+            if API_FOOTBALL_KEY:
+                fetch_rpl()
+            else:
+                print('  RPL skipped: API_FOOTBALL_KEY not set')
+            continue
+
+        api_code = code
 
         league_data = {'code': code, 'updated': today, 'matches': [], 'standings': [], 'finished': []}
         name_fn = rpl_ru_name if code == 'RPL' else lambda x: x
