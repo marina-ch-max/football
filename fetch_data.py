@@ -426,12 +426,19 @@ def main():
 
     for code in LEAGUES:
         print(f'Fetching {code}...')
+
+        # RPL: try football-data.org with code RFPL, fallback to API-Football
+        if code == 'RPL':
+            api_code = 'RFPL'
+        else:
+            api_code = code
+
         league_data = {'code': code, 'updated': today, 'matches': [], 'standings': [], 'finished': []}
         name_fn = rpl_ru_name if code == 'RPL' else lambda x: x
 
         # 1. Scheduled matches
         try:
-            data = api_get(f'/competitions/{code}/matches?status=SCHEDULED')
+            data = api_get(f'/competitions/{api_code}/matches?status=SCHEDULED')
             matches = data.get('matches', [])
             for m in matches[:20]:
                 league_data['matches'].append({
@@ -457,7 +464,7 @@ def main():
 
         # 2. Standings
         try:
-            data = api_get(f'/competitions/{code}/standings')
+            data = api_get(f'/competitions/{api_code}/standings')
             for s in data.get('standings', []):
                 if s['type'] == 'TOTAL':
                     for row in s.get('table', []):
@@ -484,7 +491,7 @@ def main():
 
         # 3. Recent finished matches
         try:
-            data = api_get(f'/competitions/{code}/matches?status=FINISHED&dateFrom={date_from}&dateTo={date_to}')
+            data = api_get(f'/competitions/{api_code}/matches?status=FINISHED&dateFrom={date_from}&dateTo={date_to}')
             for m in data.get('matches', []):
                 league_data['finished'].append({
                     'id': m['id'],
