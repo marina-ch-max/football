@@ -267,6 +267,27 @@
         .calc-result { margin-top:10px; padding:10px; border-radius:8px; font-size:13px; line-height:1.6; }
         .calc-result-single { background:#1a3d1a; border:1px solid var(--green); }
         .calc-result-express { background:#3d3a1a; border:1px solid var(--yellow); }
+        /* My Bets */
+        .my-bet-badge { font-size:10px; background:var(--blue); color:#fff; padding:2px 6px; border-radius:4px; white-space:nowrap; }
+        .bet-form { padding:16px; }
+        .bet-form-title { font-size:15px; font-weight:700; margin-bottom:12px; }
+        .bet-outcome { display:flex; gap:8px; margin:12px 0; }
+        .bet-outcome button { flex:1; padding:10px; border:2px solid var(--border); background:var(--bg2); color:var(--text); border-radius:8px; cursor:pointer; font-weight:600; font-size:14px; transition:all .15s; }
+        .bet-outcome button:hover { border-color:var(--text2); }
+        .bet-outcome button.selected { border-color:var(--green); background:rgba(0,230,118,0.1); color:var(--green); }
+        .bet-result-win { color:var(--green); font-weight:600; }
+        .bet-result-loss { color:var(--red); font-weight:600; }
+        .live-badge { background:var(--red); color:#fff; font-size:10px; padding:2px 6px; border-radius:4px; animation:pulse 2s infinite; }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.6} }
+        .mybets-card { padding:12px; border-bottom:1px solid var(--border); }
+        .mybets-status { font-size:11px; color:var(--text2); margin-bottom:4px; }
+        .mybets-teams { font-size:14px; font-weight:600; margin-bottom:6px; }
+        .mybets-info { font-size:12px; color:var(--text2); margin-bottom:8px; }
+        .btn-refresh { background:none; border:1px solid var(--border); color:var(--text2); border-radius:8px; padding:4px 10px; cursor:pointer; font-size:14px; }
+        .btn-refresh:hover { border-color:var(--text); color:var(--text); }
+        .btn-bet-sm { font-size:10px; padding:3px 8px; border:1px solid var(--border); background:var(--bg2); color:var(--text2); border-radius:4px; cursor:pointer; white-space:nowrap; }
+        .btn-bet-sm:hover { border-color:var(--text); color:var(--text); }
+        .btn-bet-cancel { font-size:10px; padding:2px 6px; border:none; background:transparent; color:var(--red); cursor:pointer; }
     </style>
 </head>
 <body>
@@ -404,12 +425,25 @@
     }
 
     // ==================== STATE ====================
-    const state = { currentLeague: null, leagueData: {}, oddsData: {} };
+    const state = { currentLeague: null, leagueData: {}, oddsData: {}, lastRefresh: Date.now() };
+
+    // ==================== MY BETS (localStorage) ====================
+    function getMyBets() { try { return JSON.parse(localStorage.getItem('football_myBets') || '[]'); } catch(e) { return []; } }
+    function saveMyBets(bets) { localStorage.setItem('football_myBets', JSON.stringify(bets)); }
+    function addMyBet(matchId, leagueCode, outcome, amount) {
+        const bets = getMyBets().filter(b => b.matchId !== matchId);
+        bets.push({ matchId, leagueCode, outcome, amount: amount || 0, timestamp: Date.now() });
+        saveMyBets(bets);
+    }
+    function removeMyBet(matchId) { saveMyBets(getMyBets().filter(b => b.matchId !== matchId)); }
+    function isMyBet(matchId) { return getMyBets().some(b => b.matchId === matchId); }
+    function getMyBetInfo(matchId) { return getMyBets().find(b => b.matchId === matchId); }
 
     // ==================== DATA LOADING ====================
     async function loadLeague(code) {
         if (state.leagueData[code]) return state.leagueData[code];
-        const res = await fetch(`${DATA_BASE}/${code}.json`);
+        const cacheBust = state.lastRefresh ? `?t=${state.lastRefresh}` : '';
+        const res = await fetch(`${DATA_BASE}/${code}.json${cacheBust}`);
         if (!res.ok) throw new Error(`\u041D\u0435\u0442 \u0434\u0430\u043D\u043D\u044B\u0445 \u0434\u043B\u044F ${code}`);
         const data = await res.json();
         state.leagueData[code] = data;
@@ -419,7 +453,8 @@
     async function loadOdds(code) {
         if (state.oddsData[code]) return state.oddsData[code];
         try {
-            const res = await fetch(`${DATA_BASE}/odds_${code}.json`);
+            const cacheBust = state.lastRefresh ? `?t=${state.lastRefresh}` : '';
+            const res = await fetch(`${DATA_BASE}/odds_${code}.json${cacheBust}`);
             if (!res.ok) return null;
             const data = await res.json();
             state.oddsData[code] = data;
@@ -688,10 +723,12 @@
                     <h1 style="margin-bottom:4px">\u0424\u0443\u0442\u0431\u043E\u043B\u044C\u043D\u044B\u0435 \u041F\u0440\u043E\u0433\u043D\u043E\u0437\u044B ${regionMode === 'ru' ? '\u{1F1F7}\u{1F1FA}' : '\u{1F30D}'}</h1>
                     <button class="version-switch" onclick="toggleRegion()">${regionMode === 'ru' ? '\u{1F30D} International' : '\u{1F1F7}\u{1F1FA} \u0420\u043E\u0441\u0441\u0438\u044F'}</button>
                 </div>
-                <div style="display:flex;align-items:center;gap:10px">
+                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                    <button class="standings-btn" onclick="openMyBets()">\u{1F3AF} \u041C\u043E\u0438 \u0441\u0442\u0430\u0432\u043A\u0438</button>
                     <button class="standings-btn" onclick="openBetsOfDay()">\u{1F525} \u0421\u0442\u0430\u0432\u043A\u0438 \u0434\u043D\u044F</button>
                     <button class="standings-btn" onclick="openStandings()">\uD83D\uDCCA \u0422\u0430\u0431\u043B\u0438\u0446\u0430</button>
                     <button class="standings-btn" onclick="openGuide()">\u2753 \u0413\u0438\u0434</button>
+                    <button class="btn-refresh" onclick="refreshData()" title="\u041E\u0431\u043D\u043E\u0432\u0438\u0442\u044C \u0434\u0430\u043D\u043D\u044B\u0435">\u{1F504}</button>
                     <div class="header-right" id="updateInfo"></div>
                 </div>
             </div>
@@ -837,6 +874,10 @@
             const hName = ruName(m.homeTeam.name);
             const aName = ruName(m.awayTeam.name);
             const evText = s.evBest > 0.08 ? `<span class="ev-tag">EV +${(s.evBest*100).toFixed(0)}% ${s.evLabel}</span>` : '';
+            const bet = getMyBetInfo(m.id);
+            const betHTML = bet
+                ? `<span class="my-bet-badge" onclick="event.stopPropagation();openBetForm(${m.id},'${leagueCode}','${hName.replace(/'/g,"\\'")}','${aName.replace(/'/g,"\\'")}')">🎯 ${bet.outcome}${bet.amount ? ' '+bet.amount+'₽' : ''}</span>`
+                : `<button class="btn-bet-sm" onclick="event.stopPropagation();openBetForm(${m.id},'${leagueCode}','${hName.replace(/'/g,"\\'")}','${aName.replace(/'/g,"\\'")}')">\u042F \u043F\u043E\u0441\u0442\u0430\u0432\u0438\u043B</button>`;
             return `<div class="summary-row">
                 <div class="sr-time">${formatDate(m.utcDate)}<br><b>${formatTime(m.utcDate)}</b></div>
                 <div class="sr-teams">
@@ -849,6 +890,7 @@
                 </div>
                 <div class="sr-verdict"><span class="${s.verdictClass}">${s.verdictLabel}</span>${evText}</div>
                 <div class="sr-actions">
+                    ${betHTML}
                     <button class="btn btn-green btn-sm" onclick="event.stopPropagation();openPredictionById(${m.id},'${leagueCode}')">\u041F\u0440\u043E\u0433\u043D\u043E\u0437</button>
                     <a class="btn btn-orange btn-sm" href="${fonbetUrl()}" target="_blank" rel="noopener" onclick="event.stopPropagation()">\u0424\u043E\u043D\u0431\u0435\u0442</a>
                 </div>
@@ -902,6 +944,50 @@
         const idx = data.matches.findIndex(m => m.id === matchId || m.id === String(matchId));
         if (idx === -1) return;
         openPrediction(idx, leagueCode);
+    }
+
+    // ==================== BET FORM ====================
+    function openBetForm(matchId, leagueCode, homeName, awayName) {
+        const existing = getMyBetInfo(matchId);
+        let selOutcome = existing ? existing.outcome : '';
+        let selAmount = existing ? existing.amount : '';
+        $('#modalContainer').innerHTML = `
+        <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+            <div class="modal" style="max-width:380px">
+                <div class="modal-header"><h2>\u{1F3AF} \u042F \u043F\u043E\u0441\u0442\u0430\u0432\u0438\u043B</h2><button class="modal-close" onclick="closeModal()">&times;</button></div>
+                <div class="modal-body">
+                    <div class="bet-form">
+                        <div class="bet-form-title">${homeName} \u2014 ${awayName}</div>
+                        <div style="font-size:12px;color:var(--text2);margin-bottom:8px">\u0412\u044B\u0431\u0435\u0440\u0438 \u0438\u0441\u0445\u043E\u0434:</div>
+                        <div class="bet-outcome">
+                            <button id="betP1" onclick="document.querySelectorAll('.bet-outcome button').forEach(b=>b.classList.remove('selected'));this.classList.add('selected')">\u041F1<br><span style="font-size:11px;font-weight:400">${homeName}</span></button>
+                            <button id="betD" onclick="document.querySelectorAll('.bet-outcome button').forEach(b=>b.classList.remove('selected'));this.classList.add('selected')">\u041D\u0438\u0447\u044C\u044F</button>
+                            <button id="betP2" onclick="document.querySelectorAll('.bet-outcome button').forEach(b=>b.classList.remove('selected'));this.classList.add('selected')">\u041F2<br><span style="font-size:11px;font-weight:400">${awayName}</span></button>
+                        </div>
+                        <div style="font-size:12px;color:var(--text2);margin-bottom:6px">\u0421\u0443\u043C\u043C\u0430 (\u043D\u0435\u043E\u0431\u044F\u0437\u0430\u0442\u0435\u043B\u044C\u043D\u043E):</div>
+                        <input type="number" id="betAmount" class="calc-input" placeholder="1000" value="${selAmount || ''}" style="width:100%;margin-bottom:14px">
+                        <button class="btn btn-green" style="width:100%;padding:12px;font-size:15px" onclick="saveBetFromForm(${matchId},'${leagueCode}')">\u0421\u043E\u0445\u0440\u0430\u043D\u0438\u0442\u044C</button>
+                        ${existing ? '<button class="btn" style="width:100%;padding:10px;font-size:13px;margin-top:8px;background:transparent;border:1px solid var(--red);color:var(--red)" onclick="removeMyBet('+matchId+');closeModal();selectLeague(state.currentLeague)">\u0423\u0434\u0430\u043B\u0438\u0442\u044C \u0441\u0442\u0430\u0432\u043A\u0443</button>' : ''}
+                    </div>
+                </div>
+            </div>
+        </div>`;
+        if (selOutcome) {
+            const btnId = selOutcome === '\u041F1' ? 'betP1' : selOutcome === '\u041D' ? 'betD' : 'betP2';
+            const el = document.getElementById(btnId);
+            if (el) el.classList.add('selected');
+        }
+    }
+
+    function saveBetFromForm(matchId, leagueCode) {
+        const selected = document.querySelector('.bet-outcome button.selected');
+        if (!selected) { alert('\u0412\u044B\u0431\u0435\u0440\u0438 \u0438\u0441\u0445\u043E\u0434!'); return; }
+        const text = selected.id;
+        const outcome = text === 'betP1' ? '\u041F1' : text === 'betD' ? '\u041D' : '\u041F2';
+        const amount = parseFloat(document.getElementById('betAmount').value) || 0;
+        addMyBet(matchId, leagueCode, outcome, amount);
+        closeModal();
+        selectLeague(state.currentLeague);
     }
 
     function renderPrediction(match, data, matchOdds, oddsData) {
@@ -1554,6 +1640,105 @@
         </div>`;
     }
 
+    // ==================== MY BETS MODAL ====================
+    async function openMyBets() {
+        $('#modalContainer').innerHTML = `
+        <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+            <div class="modal">
+                <div class="modal-header"><h2>\u{1F3AF} \u041C\u043E\u0438 \u0441\u0442\u0430\u0432\u043A\u0438</h2><button class="modal-close" onclick="closeModal()">&times;</button></div>
+                <div class="modal-body"><div class="loading"><div class="spinner"></div><br>\u0417\u0430\u0433\u0440\u0443\u0437\u043A\u0430...</div></div>
+            </div>
+        </div>`;
+
+        const bets = getMyBets();
+        if (bets.length === 0) {
+            document.querySelector('.modal-body').innerHTML = '<div class="empty-msg">\u0412\u044B \u0435\u0449\u0451 \u043D\u0435 \u043E\u0442\u043C\u0435\u0442\u0438\u043B\u0438 \u043D\u0438 \u043E\u0434\u043D\u043E\u0439 \u0441\u0442\u0430\u0432\u043A\u0438.<br>\u041D\u0430\u0436\u043C\u0438\u0442\u0435 \u00AB\u042F \u043F\u043E\u0441\u0442\u0430\u0432\u0438\u043B\u00BB \u043D\u0430 \u043B\u044E\u0431\u043E\u043C \u043C\u0430\u0442\u0447\u0435.</div>';
+            return;
+        }
+
+        // Load all needed leagues and find matches
+        const items = [];
+        for (const bet of bets) {
+            try {
+                const data = await loadLeague(bet.leagueCode);
+                const allMatches = [...(data.matches || []), ...(data.finished || [])];
+                const match = allMatches.find(m => m.id === bet.matchId || m.id === String(bet.matchId));
+                if (match) {
+                    const league = LEAGUES.find(l => l.code === bet.leagueCode);
+                    items.push({ bet, match, league, data });
+                }
+            } catch(e) {}
+        }
+
+        // Sort: LIVE first, then scheduled, then finished
+        const statusOrder = { 'IN_PLAY': 0, 'PAUSED': 0, 'HALFTIME': 0, 'LIVE': 0, 'TIMED': 1, 'SCHEDULED': 1, 'FINISHED': 2, 'AWARDED': 2, 'POSTPONED': 3 };
+        items.sort((a, b) => {
+            const oa = statusOrder[a.match.status] ?? 1;
+            const ob = statusOrder[b.match.status] ?? 1;
+            if (oa !== ob) return oa - ob;
+            return new Date(a.match.utcDate) - new Date(b.match.utcDate);
+        });
+
+        function matchResult(match) {
+            const sc = match.score;
+            if (!sc || !sc.fullTime || sc.fullTime.home == null) return null;
+            const h = sc.fullTime.home, a = sc.fullTime.away;
+            return h > a ? '\u041F1' : h === a ? '\u041D' : '\u041F2';
+        }
+
+        let html = '';
+        for (const item of items) {
+            const { bet, match, league } = item;
+            const hName = ruName(match.homeTeam.name);
+            const aName = ruName(match.awayTeam.name);
+            const status = match.status;
+            const isLive = ['IN_PLAY','PAUSED','HALFTIME','LIVE'].includes(status);
+            const isFinished = ['FINISHED','AWARDED'].includes(status);
+            const sc = match.score;
+
+            let statusHTML = '';
+            let resultHTML = '';
+
+            if (isLive) {
+                const scoreText = sc && sc.fullTime && sc.fullTime.home != null ? `${sc.fullTime.home}:${sc.fullTime.away}` : '?:?';
+                statusHTML = `<span class="live-badge">LIVE</span> ${scoreText}`;
+            } else if (isFinished) {
+                const scoreText = sc && sc.fullTime ? `${sc.fullTime.home}:${sc.fullTime.away}` : '';
+                const actual = matchResult(match);
+                if (actual && actual === bet.outcome) {
+                    resultHTML = `<span class="bet-result-win">\u2705 \u0412\u044B\u0438\u0433\u0440\u0430\u043B!</span>`;
+                } else if (actual) {
+                    resultHTML = `<span class="bet-result-loss">\u274C \u041F\u0440\u043E\u0438\u0433\u0440\u0430\u043B</span>`;
+                }
+                statusHTML = `${scoreText} (\u0437\u0430\u0432\u0435\u0440\u0448\u0451\u043D)`;
+            } else {
+                statusHTML = `\u23F0 ${formatDate(match.utcDate)} ${formatTime(match.utcDate)}`;
+            }
+
+            html += `<div class="mybets-card">
+                <div class="mybets-status">
+                    ${league ? league.flag + ' ' + league.name + ' \u2022 ' : ''}${statusHTML}
+                    ${resultHTML}
+                </div>
+                <div class="mybets-teams">${hName} \u2014 ${aName}</div>
+                <div class="mybets-info">
+                    \u041C\u043E\u044F \u0441\u0442\u0430\u0432\u043A\u0430: <b>${bet.outcome}</b>${bet.amount ? ' \u2014 ' + bet.amount + '\u20BD' : ''}
+                </div>
+                <div style="display:flex;gap:8px">
+                    ${!isFinished ? `<button class="btn btn-green btn-sm" onclick="closeModal();openPredictionById(${match.id},'${bet.leagueCode}')">\u041F\u0440\u043E\u0433\u043D\u043E\u0437</button>
+                    <a class="btn btn-orange btn-sm" style="display:inline-block;padding:6px 16px" href="${fonbetUrl()}" target="_blank" rel="noopener">\u26BD \u0424\u043E\u043D\u0431\u0435\u0442</a>` : ''}
+                    <button class="btn-bet-cancel" onclick="removeMyBet(${match.id});this.closest('.mybets-card').remove()">\u2715 \u0423\u0434\u0430\u043B\u0438\u0442\u044C</button>
+                </div>
+            </div>`;
+        }
+
+        if (!items.length) {
+            html = '<div class="empty-msg">\u041C\u0430\u0442\u0447\u0438 \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u044B \u0432 \u0434\u0430\u043D\u043D\u044B\u0445. \u0412\u043E\u0437\u043C\u043E\u0436\u043D\u043E, \u0434\u0430\u043D\u043D\u044B\u0435 \u0435\u0449\u0451 \u043D\u0435 \u043E\u0431\u043D\u043E\u0432\u0438\u043B\u0438\u0441\u044C.</div>';
+        }
+
+        document.querySelector('.modal-body').innerHTML = html;
+    }
+
     // Bets of the Day modal
     async function openBetsOfDay() {
         $('#modalContainer').innerHTML = `
@@ -1871,6 +2056,24 @@
 
     function closeModal() { $('#modalContainer').innerHTML = ''; }
     document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+    // ==================== DATA REFRESH ====================
+    async function refreshData() {
+        const code = state.currentLeague;
+        if (!code) return;
+        // Clear cache for current league to force re-fetch
+        delete state.leagueData[code];
+        delete state.oddsData[code];
+        state.lastRefresh = Date.now();
+        await selectLeague(code);
+    }
+
+    // Auto-refresh every 5 minutes
+    setInterval(() => {
+        if (state.currentLeague && !document.querySelector('.modal-overlay')) {
+            refreshData();
+        }
+    }, 5 * 60 * 1000);
 
     // ==================== INIT ====================
     renderMain();
