@@ -428,9 +428,14 @@ def main():
         print(f'Fetching {code}...')
 
         # RPL: use API-Football (api-sports.io) instead of football-data.org
+        # Only fetch RPL every 2 hours (minutes 0-29 of even hours) to stay within 100 req/day limit
         if code == 'RPL':
+            current_hour = datetime.utcnow().hour
             if API_FOOTBALL_KEY:
-                fetch_rpl()
+                if current_hour % 2 == 0:
+                    fetch_rpl()
+                else:
+                    print('  RPL skipped this run (fetches every 2h to save API quota)')
             else:
                 print('  RPL skipped: API_FOOTBALL_KEY not set')
             continue
