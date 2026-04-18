@@ -861,7 +861,7 @@
         return { homeXG, awayXG, outcomes, verdictClass, verdictLabel, hasValue, homePos, awayPos, evBest, evLabel, favLabel, favP, passed };
     }
 
-    function isLiveMatch(m) { return m.status && ['IN_PLAY','PAUSED','HALFTIME','LIVE'].includes(m.status); }
+    function isLiveMatch(m) { return false; } // live-режим отключён
     function liveScoreText(m) {
         const sc = m.score && m.score.fullTime;
         if (!sc || sc.home == null) return '?:?';

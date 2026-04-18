@@ -344,11 +344,9 @@ def fetch_rpl():
 
     # 1. Upcoming + Live matches
     try:
-        # Fetch scheduled (NS) matches
+        # Fetch scheduled (NS) matches — live отключён
         fixtures = api_football_get(f'/fixtures?league=235&season={season}&status=NS&next=20')
-        # Also fetch live matches (1H, HT, 2H, ET, P, LIVE)
-        live_fixtures = api_football_get(f'/fixtures?league=235&season={season}&live=all') or []
-        all_fixtures = list(live_fixtures) + list(fixtures[:20])
+        all_fixtures = list(fixtures[:20])
         for f in all_fixtures:
             status_short = f['fixture'].get('status', {}).get('short', 'NS')
             is_live = status_short in ('1H', 'HT', '2H', 'ET', 'P', 'LIVE')
@@ -471,7 +469,7 @@ def main():
 
         # 1. Scheduled + Live matches
         try:
-            data = api_get(f'/competitions/{api_code}/matches?status=SCHEDULED,IN_PLAY,PAUSED')
+            data = api_get(f'/competitions/{api_code}/matches?status=SCHEDULED')
             matches = data.get('matches', [])
             for m in matches[:20]:
                 match_entry = {
