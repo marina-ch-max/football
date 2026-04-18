@@ -583,13 +583,18 @@ def main():
             json.dump(league_data, f, ensure_ascii=False)
         print(f'  Saved to {filepath}')
 
-    # Fetch odds from The Odds API
-    if ODDS_API_KEY:
-        leagues = get_odds_leagues()
-        print(f'Fetching odds for: {", ".join(leagues)}')
-        fetch_odds(leagues)
-    else:
+    # Fetch odds from The Odds API — только при ручном запуске (FETCH_ODDS=1)
+    # На cron не тянем чтобы экономить квоту (500 запросов/месяц).
+    fetch_odds_flag = os.environ.get('FETCH_ODDS', '')
+    if not ODDS_API_KEY:
         print('ODDS_API_KEY not set, skipping odds')
+    elif not fetch_odds_flag:
+        print('Odds skipped (cron run). Тянутся только при ручном запуске workflow.')
+    else:
+        # Ручной запуск — тянем ВСЕ лиги сразу (раньше была ротация по часам)
+        leagues = list(LEAGUE_TO_SPORT.keys())
+        print(f'Manual trigger: fetching odds for ALL leagues: {", ".join(leagues)}')
+        fetch_odds(leagues)
 
     print('Done!')
 

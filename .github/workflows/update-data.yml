@@ -23,6 +23,8 @@ jobs:
           FOOTBALL_API_KEY: ${{ secrets.FOOTBALL_API_KEY }}
           API_FOOTBALL_KEY: ${{ secrets.API_FOOTBALL_KEY }}
           ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+          # Кэфы тянем только при ручном запуске — экономит квоту the-odds-api
+          FETCH_ODDS: ${{ github.event_name == 'workflow_dispatch' && '1' || '' }}
         run: python fetch_data.py
 
       - name: Commit and push
