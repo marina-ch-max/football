@@ -652,53 +652,45 @@
         return { all, home, away };
     }
 
-    // Confidence rating (0-10)
+    // Confidence rating (0-10) — 3 независимых группы: уверенность модели, value (нормированный рынок), асимметрия формы
     function calcConfidence(outcomes, hElo, aElo, homeFormAll, awayFormAll, matchOdds, h2hMatches, homeId) {
         let score = 0;
-        const eloDiff = Math.abs(hElo - aElo);
-        // Elo diff (0-2)
-        if (eloDiff > 150) score += 2;
-        else if (eloDiff > 80) score += 1;
-        // 1X2 dominance (0-3)
+        // 1X2 уверенность модели (0-4)
         const maxP = Math.max(outcomes.p1, outcomes.pX, outcomes.p2);
-        if (maxP > 0.70) score += 3;
-        else if (maxP > 0.55) score += 2;
+        if (maxP > 0.70) score += 4;
+        else if (maxP > 0.55) score += 3;
         else if (maxP > 0.45) score += 1;
-        // Form of the favorite (0-2)
+        // Асимметрия формы: фаворит vs андердог (0-2)
         const favForm = outcomes.p1 >= outcomes.p2 ? homeFormAll : awayFormAll;
+        const undForm = outcomes.p1 >= outcomes.p2 ? awayFormAll : homeFormAll;
         const wins = favForm.filter(r => r === 'W').length;
-        if (wins >= 4) score += 2;
-        else if (wins >= 3) score += 1;
-        // Value bet (0-2)
+        const undWins = undForm.filter(r => r === 'W').length;
+        const gap = wins - undWins;
+        if (gap >= 3) score += 2;
+        else if (gap >= 2) score += 1;
+        // Value bet — нормированный рынок (0-3)
         if (matchOdds && matchOdds.h2h && matchOdds.h2h.best) {
             const best = matchOdds.h2h.best;
-            const checks = [
-                { p: outcomes.p1, odds: best.home },
-                { p: outcomes.pX, odds: best.draw },
-                { p: outcomes.p2, odds: best.away },
-            ];
-            let maxEV = 0;
-            for (const c of checks) {
-                if (c.odds > 0) maxEV = Math.max(maxEV, c.p * c.odds - 1);
+            const os = [best.home, best.draw, best.away];
+            const ps = [outcomes.p1, outcomes.pX, outcomes.p2];
+            let invSum = 0;
+            for (const o of os) if (o > 0) invSum += 1 / o;
+            let maxEdge = 0, maxEV = 0;
+            for (let i = 0; i < 3; i++) {
+                if (os[i] > 0 && invSum > 0) {
+                    const pMarket = (1 / os[i]) / invSum;
+                    const edge = ps[i] - pMarket;
+                    const ev = ps[i] * os[i] - 1;
+                    if (edge > maxEdge) { maxEdge = edge; maxEV = ev; }
+                }
             }
-            if (maxEV > 0.15) score += 2;
-            else if (maxEV > 0.08) score += 1;
+            if (maxEdge > 0.15 && maxEV > 0.10) score += 3;
+            else if (maxEdge > 0.08 && maxEV > 0.03) score += 2;
+            else if (maxEdge > 0.04) score += 1;
         }
         // H2H consistency (0-1)
         if (h2hMatches && h2hMatches.length >= 2) {
-            const favId = outcomes.p1 >= outcomes.p2 ? homeId : null;
-            let favWins = 0;
-            for (const m of h2hMatches.slice(0, 3)) {
-                if (favId) {
-                    if (m.homeTeam.id === favId && m.homeGoals > m.awayGoals) favWins++;
-                    else if (m.awayTeam.id === favId && m.awayGoals > m.homeGoals) favWins++;
-                } else {
-                    const aId = outcomes.p2 > outcomes.p1 ? (m.awayTeam.id) : null;
-                    if (aId && m.awayTeam.id === aId && m.awayGoals > m.homeGoals) favWins++;
-                    else if (aId && m.homeTeam.id === aId && m.homeGoals > m.awayGoals) favWins++;
-                }
-            }
-            if (favWins >= 2) score += 1;
+            // H2H убран — скоррелирован с maxP и формой, давал искусственное повышение рейтинга
         }
         return Math.min(score, 10);
     }
@@ -965,7 +957,7 @@
             const hName = ruName(m.homeTeam.name);
             const aName = ruName(m.awayTeam.name);
             const live = isLiveMatch(m);
-            const evText = !live && s.evBest > 0.08 ? `<span class="ev-tag">EV +${(s.evBest*100).toFixed(0)}% ${s.evLabel}</span>` : '';
+            const evText = !live && s.hasValue ? `<span class="ev-tag">EV +${(s.evBest*100).toFixed(0)}% ${s.evLabel}</span>` : '';
             const bet = getMyBetInfo(m.id);
             const betHTML = bet
                 ? `<span class="my-bet-badge" data-tip="${bet.outcome}${bet.amount ? ' '+bet.amount+'₽' : ''}" onclick="event.stopPropagation();openBetForm(${m.id},'${leagueCode}','${hName.replace(/'/g,"\\'")}','${aName.replace(/'/g,"\\'")}')">🎯</span>`
@@ -1426,26 +1418,25 @@
             </div>`;
         }
 
-        // === VALUE BETS ===
+        // === VALUE BETS === (та же логика что в verdict: нормированный рынок + 8 п.п. над ним + EV > 3%)
         let valueBetsHTML = '';
         if (modelOutcomes && h2h.best && h2h.best.home > 0) {
             const valueBets = [];
+            const os = [h2h.best.home, h2h.best.draw, h2h.best.away];
+            let invSum = 0;
+            for (const o of os) if (o > 0) invSum += 1 / o;
             const checks = [
                 { label: '\u041F\u043E\u0431\u0435\u0434\u0430 1', modelP: modelOutcomes.p1, odds: h2h.best.home },
                 { label: '\u041D\u0438\u0447\u044C\u044F', modelP: modelOutcomes.pX, odds: h2h.best.draw },
                 { label: '\u041F\u043E\u0431\u0435\u0434\u0430 2', modelP: modelOutcomes.p2, odds: h2h.best.away },
             ];
             for (const c of checks) {
+                if (c.odds <= 0 || invSum <= 0) continue;
                 const impliedP = 1 / c.odds;
-                const ev = c.modelP * c.odds - 1; // Expected Value
-                if (ev > 0.08) {
-                    valueBets.push({
-                        label: c.label,
-                        modelP: c.modelP,
-                        impliedP: impliedP,
-                        odds: c.odds,
-                        ev: ev
-                    });
+                const marketP = impliedP / invSum; // нормированная рыночная вероятность без маржи
+                const ev = c.modelP * c.odds - 1;
+                if (c.modelP - marketP > 0.08 && ev > 0.03) {
+                    valueBets.push({ label: c.label, modelP: c.modelP, impliedP, marketP, odds: c.odds, ev });
                 }
             }
             if (valueBets.length > 0) {
@@ -1865,57 +1856,73 @@
             </div>
         </div>`;
 
-        const bets = [];
+        const bets = [];        // strict v-bet
+        const caution = [];     // v-caution (2/3 факторов)
+        let oddsMissing = 0, totalMatches = 0, oldestOddsAgo = 0;
         const now = new Date();
         const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
         for (const league of LEAGUES) {
             try {
                 const data = await loadLeague(league.code);
                 const oddsData = await loadOdds(league.code);
+                if (oddsData && oddsData.updated) {
+                    const hrs = (Date.now() - new Date(oddsData.updated).getTime()) / 3600000;
+                    if (hrs > oldestOddsAgo) oldestOddsAgo = hrs;
+                }
                 const matches = (data.matches || []).filter(m => {
                     if (!m.homeTeam.name || m.homeTeam.name === 'null') return false;
                     const d = new Date(m.utcDate);
                     return d >= now && d < todayEnd;
                 });
                 for (const m of matches) {
+                    totalMatches++;
                     const matchOdds = findOddsForMatch(m, oddsData);
+                    if (!matchOdds) oddsMissing++;
                     const s = calcMatchSummary(m, data, matchOdds);
-                    if (s.verdictClass === 'v-bet') {
-                        bets.push({ league, match: m, summary: s });
-                    }
+                    if (s.verdictClass === 'v-bet') bets.push({ league, match: m, summary: s });
+                    else if (s.verdictClass === 'v-caution') caution.push({ league, match: m, summary: s });
                 }
             } catch(e) {}
         }
 
+        const oddsWarn = (totalMatches > 0 && oddsMissing / totalMatches > 0.3)
+            ? `<div style="padding:10px 14px;background:#33270f;border:1px solid #7a5a1a;color:#fde68a;font-size:12px;line-height:1.5">\u26A0\uFE0F \u041A\u044D\u0444\u044B \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u044B \u0434\u043B\u044F ${oddsMissing} \u0438\u0437 ${totalMatches} \u043C\u0430\u0442\u0447\u0435\u0439 (\u043C\u0430\u043A\u0441. \u0432\u043E\u0437\u0440\u0430\u0441\u0442: ${Math.floor(oldestOddsAgo)}\u0447). \u0411\u0435\u0437 \u0441\u0432\u0435\u0436\u0438\u0445 \u043A\u044D\u0444\u043E\u0432 value-\u0441\u0438\u0433\u043D\u0430\u043B\u044B \u043D\u0435\u0432\u043E\u0437\u043C\u043E\u0436\u043D\u044B. \u041D\u0430\u0436\u043C\u0438 <b>\uD83D\uDD04 \u041E\u0431\u043D\u043E\u0432\u0438\u0442\u044C \u0434\u0430\u043D\u043D\u044B\u0435</b> \u0432 \u0448\u0430\u043F\u043A\u0435 \u0438 \u043F\u043E\u0434\u043E\u0436\u0434\u0438 2\u20133 \u043C\u0438\u043D.</div>`
+            : '';
+
+        const renderBetCard = (b, label, cls) => {
+            const s = b.summary;
+            const m = b.match;
+            const hName = ruName(m.homeTeam.name);
+            const aName = ruName(m.awayTeam.name);
+            const kellyRaw = s.evBest > 0 ? (s.evBest / (s.favP > 0 ? (1/s.favP - 1) : 1)) * 0.5 : 0;
+            const kelly = Math.min(kellyRaw, 0.05);
+            return `<div style="padding:12px;border-bottom:1px solid var(--border)">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                    <span style="font-size:11px;color:var(--text2)">${b.league.flag} ${b.league.name} \u2022 ${formatTime(m.utcDate)}</span>
+                    <span class="${cls}">${label}</span>
+                </div>
+                <div style="font-size:14px;font-weight:600;margin-bottom:6px">${hName} <span class="sr-pos">(${s.homePos})</span> \u2014 ${aName} <span class="sr-pos">(${s.awayPos})</span></div>
+                <div style="display:flex;gap:12px;font-size:12px;color:var(--text2);margin-bottom:8px;flex-wrap:wrap">
+                    <span>xG: ${s.homeXG.toFixed(1)}-${s.awayXG.toFixed(1)}</span>
+                    ${s.hasValue ? `<span>\u0421\u0442\u0430\u0432\u043A\u0430: <b style="color:var(--green)">${s.evLabel}</b></span><span>EV: <b style="color:var(--green)">+${(s.evBest*100).toFixed(0)}%</b></span>` : ''}
+                    ${kelly > 0.01 && s.hasValue ? `<span>Kelly: <b style="color:var(--blue)">${(kelly*100).toFixed(1)}%</b></span>` : ''}
+                </div>
+                <div style="display:flex;gap:8px">
+                    <button class="btn btn-green btn-sm" onclick="closeModal();openPredictionById(${m.id},'${b.league.code}')">\u041F\u0440\u043E\u0433\u043D\u043E\u0437</button>
+                    <a class="btn btn-orange btn-sm" style="display:inline-block;padding:6px 16px" href="${fonbetUrl()}" target="_blank" rel="noopener">\u26BD \u0424\u043E\u043D\u0431\u0435\u0442</a>
+                </div>
+            </div>`;
+        };
+
         let bodyHTML;
-        if (bets.length === 0) {
-            bodyHTML = '<div class="empty-msg">\u0421\u0435\u0433\u043E\u0434\u043D\u044F \u043D\u0435\u0442 \u043C\u0430\u0442\u0447\u0435\u0439 \u0441 \u0432\u0435\u0440\u0434\u0438\u043A\u0442\u043E\u043C \u0421\u0422\u0410\u0412\u042c.<br>\u041F\u0440\u043E\u0432\u0435\u0440\u044C\u0442\u0435 \u043E\u0442\u0434\u0435\u043B\u044C\u043D\u044B\u0435 \u043B\u0438\u0433\u0438 \u2014 \u0442\u0430\u043C \u043C\u043E\u0433\u0443\u0442 \u0431\u044B\u0442\u044C \u043C\u0430\u0442\u0447\u0438 \u043D\u0430 \u0434\u0440\u0443\u0433\u0438\u0435 \u0434\u043D\u0438.</div>';
+        if (bets.length === 0 && caution.length === 0) {
+            bodyHTML = oddsWarn + '<div class="empty-msg">\u0421\u0435\u0433\u043E\u0434\u043D\u044F \u043D\u0435\u0442 \u043C\u0430\u0442\u0447\u0435\u0439 \u0441 \u0437\u043D\u0430\u0447\u0438\u043C\u044B\u043C \u0441\u0438\u0433\u043D\u0430\u043B\u043E\u043C.<br>\u041F\u0440\u043E\u0432\u0435\u0440\u044C\u0442\u0435 \u043E\u0442\u0434\u0435\u043B\u044C\u043D\u044B\u0435 \u043B\u0438\u0433\u0438 \u2014 \u0442\u0430\u043C \u043C\u043E\u0433\u0443\u0442 \u0431\u044B\u0442\u044C \u043C\u0430\u0442\u0447\u0438 \u043D\u0430 \u0434\u0440\u0443\u0433\u0438\u0435 \u0434\u043D\u0438.</div>';
+        } else if (bets.length === 0) {
+            bodyHTML = oddsWarn + `<div style="padding:10px 14px;font-size:12px;color:var(--text2);border-bottom:1px solid var(--border);background:#2a2000">
+                \u0421\u0435\u0433\u043E\u0434\u043D\u044F <b>\u043D\u0435\u0442 \u0441\u0442\u0440\u043E\u0433\u0438\u0445 \u0441\u0438\u0433\u043D\u0430\u043B\u043E\u0432</b> (3/3 \u0444\u0430\u043A\u0442\u043E\u0440\u0430 + value). \u041F\u043E\u043A\u0430\u0437\u044B\u0432\u0430\u044E \u0432\u0435\u0440\u0434\u0438\u043A\u0442 <b>\u041E\u0421\u0422\u041E\u0420\u041E\u0416\u041D\u041E</b> (2/3) \u2014 \u043D\u0443\u0436\u043D\u0430 \u0432\u043D\u0438\u043C\u0430\u0442\u0435\u043B\u044C\u043D\u0430\u044F \u043F\u0440\u043E\u0432\u0435\u0440\u043A\u0430 \u0443 \u0431\u0443\u043A\u043C\u0435\u043A\u0435\u0440\u0430.
+            </div>` + caution.map(b => renderBetCard(b, '\u041E\u0421\u0422\u041E\u0420.', 'v-caution')).join('');
         } else {
-            bodyHTML = `<div style="padding:8px 12px;font-size:11px;color:var(--text2);border-bottom:1px solid var(--border)">\u{1F4A1} \u0421\u043E\u0432\u0435\u0442: \u0441\u0442\u0430\u0432\u044C\u0442\u0435 \u043A\u0430\u0436\u0434\u044B\u0439 \u043C\u0430\u0442\u0447 \u043E\u0442\u0434\u0435\u043B\u044C\u043D\u043E (\u043E\u0434\u0438\u043D\u043E\u0447\u043D\u044B\u0435), \u043D\u0435 \u044D\u043A\u0441\u043F\u0440\u0435\u0441\u0441\u043E\u043C</div>` + bets.map(b => {
-                const s = b.summary;
-                const m = b.match;
-                const hName = ruName(m.homeTeam.name);
-                const aName = ruName(m.awayTeam.name);
-                const kellyRaw = s.evBest > 0 ? (s.evBest / (s.favP > 0 ? (1/s.favP - 1) : 1)) * 0.5 : 0;
-                const kelly = Math.min(kellyRaw, 0.05);
-                return `<div style="padding:12px;border-bottom:1px solid var(--border)">
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-                        <span style="font-size:11px;color:var(--text2)">${b.league.flag} ${b.league.name} \u2022 ${formatTime(m.utcDate)}</span>
-                        <span class="v-bet">\u0421\u0422\u0410\u0412\u042c</span>
-                    </div>
-                    <div style="font-size:14px;font-weight:600;margin-bottom:6px">${hName} <span class="sr-pos">(${s.homePos})</span> \u2014 ${aName} <span class="sr-pos">(${s.awayPos})</span></div>
-                    <div style="display:flex;gap:12px;font-size:12px;color:var(--text2);margin-bottom:8px;flex-wrap:wrap">
-                        <span>xG: ${s.homeXG.toFixed(1)}-${s.awayXG.toFixed(1)}</span>
-                        <span>\u0421\u0442\u0430\u0432\u043A\u0430: <b style="color:var(--green)">${s.evLabel}</b></span>
-                        <span>EV: <b style="color:var(--green)">+${(s.evBest*100).toFixed(0)}%</b></span>
-                        ${kelly > 0.01 ? `<span>Kelly: <b style="color:var(--blue)">${(kelly*100).toFixed(1)}%</b></span>` : ''}
-                    </div>
-                    <div style="display:flex;gap:8px">
-                        <button class="btn btn-green btn-sm" onclick="closeModal();openPredictionById(${m.id},'${b.league.code}')">\u041F\u0440\u043E\u0433\u043D\u043E\u0437</button>
-                        <a class="btn btn-orange btn-sm" style="display:inline-block;padding:6px 16px" href="${fonbetUrl()}" target="_blank" rel="noopener">\u26BD \u0424\u043E\u043D\u0431\u0435\u0442</a>
-                    </div>
-                </div>`;
-            }).join('');
+            bodyHTML = oddsWarn + `<div style="padding:8px 12px;font-size:11px;color:var(--text2);border-bottom:1px solid var(--border)">\u{1F4A1} \u0421\u043E\u0432\u0435\u0442: \u0441\u0442\u0430\u0432\u044C\u0442\u0435 \u043A\u0430\u0436\u0434\u044B\u0439 \u043C\u0430\u0442\u0447 \u043E\u0442\u0434\u0435\u043B\u044C\u043D\u043E (\u043E\u0434\u0438\u043D\u043E\u0447\u043D\u044B\u0435), \u043D\u0435 \u044D\u043A\u0441\u043F\u0440\u0435\u0441\u0441\u043E\u043C</div>` + bets.map(b => renderBetCard(b, '\u0421\u0422\u0410\u0412\u042C', 'v-bet')).join('');
         }
 
         const modal = document.querySelector('.modal-body');
