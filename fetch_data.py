@@ -11,7 +11,7 @@ API_FOOTBALL_KEY = os.environ.get('API_FOOTBALL_KEY', '')
 ODDS_API_KEY = os.environ.get('ODDS_API_KEY', '')
 API_BASE = 'https://api.football-data.org/v4'
 ODDS_API_BASE = 'https://api.the-odds-api.com/v4'
-LEAGUES = ['PL', 'PD', 'SA', 'BL1', 'FL1', 'CL', 'RPL']
+LEAGUES = ['PL', 'PD', 'SA', 'BL1', 'FL1', 'DED', 'PPL', 'ELC', 'BSA', 'CL']
 DATA_DIR = 'data'
 
 LEAGUE_TO_SPORT = {
@@ -21,15 +21,19 @@ LEAGUE_TO_SPORT = {
     'BL1': 'soccer_germany_bundesliga',
     'FL1': 'soccer_france_ligue_one',
     'CL': 'soccer_uefa_champs_league',
-    'RPL': 'soccer_russia_premier_league',
+    'DED': 'soccer_netherlands_eredivisie',
+    'PPL': 'soccer_portugal_primeira_liga',
+    'ELC': 'soccer_efl_champ',
+    'BSA': 'soccer_brazil_campeonato',
 }
 
-# Rotation: which leagues to fetch odds for based on hour
+# Rotation: which leagues to fetch odds for based on hour (cron hits 0/3/6/9/12/15/18/21)
 ODDS_ROTATION = {
-    5: ['PL', 'PD'],
-    11: ['SA', 'BL1'],
-    17: ['FL1', 'CL'],
-    23: ['RPL'],
+    0: ['PL', 'PD'],
+    6: ['SA', 'BL1'],
+    12: ['FL1', 'CL'],
+    18: ['DED', 'PPL'],
+    21: ['ELC', 'BSA'],
 }
 
 def api_get(path):
@@ -448,24 +452,10 @@ def main():
 
     for code in LEAGUES:
         print(f'Fetching {code}...')
-
-        # RPL: use API-Football (api-sports.io) instead of football-data.org
-        # Only fetch RPL every 2 hours (minutes 0-29 of even hours) to stay within 100 req/day limit
-        if code == 'RPL':
-            current_hour = datetime.utcnow().hour
-            if API_FOOTBALL_KEY:
-                if current_hour % 2 == 0:
-                    fetch_rpl()
-                else:
-                    print('  RPL skipped this run (fetches every 2h to save API quota)')
-            else:
-                print('  RPL skipped: API_FOOTBALL_KEY not set')
-            continue
-
         api_code = code
 
         league_data = {'code': code, 'updated': today, 'matches': [], 'standings': [], 'finished': []}
-        name_fn = rpl_ru_name if code == 'RPL' else lambda x: x
+        name_fn = lambda x: x
 
         # 1. Scheduled + Live matches
         try:
