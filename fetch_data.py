@@ -1,5 +1,5 @@
 """Fetches football data from football-data.org, api-sports.io, and the-odds-api.com.
-Run by GitHub Actions every 6 hours."""
+Run by GitHub Actions every 3 hours."""
 import urllib.request
 import json
 import os
@@ -178,106 +178,112 @@ def fetch_odds(leagues_to_fetch):
 
         events = []
         for ev in raw:
-            home_team = ev.get('home_team', '')
-            away_team = ev.get('away_team', '')
+            try:
+                home_team = ev.get('home_team', '')
+                away_team = ev.get('away_team', '')
 
-            # Tag home/away in h2h outcomes
-            for bk in ev.get('bookmakers', []):
-                for mkt in bk.get('markets', []):
-                    if mkt['key'] == 'h2h':
-                        for out in mkt['outcomes']:
-                            out['_is_home'] = (out['name'] == home_team)
+                # Tag home/away in h2h outcomes
+                for bk in ev.get('bookmakers', []):
+                    for mkt in bk.get('markets', []):
+                        if mkt.get('key') == 'h2h':
+                            for out in mkt.get('outcomes', []):
+                                out['_is_home'] = (out.get('name') == home_team)
 
-            # Build bookmaker list for h2h
-            h2h_bookmakers = []
-            for bk in ev.get('bookmakers', []):
-                for mkt in bk.get('markets', []):
-                    if mkt['key'] == 'h2h':
-                        row = {'key': bk['key'], 'title': bk['title']}
-                        for out in mkt['outcomes']:
-                            if out['name'] == home_team:
-                                row['home'] = out['price']
-                            elif out['name'] == 'Draw':
-                                row['draw'] = out['price']
-                            else:
-                                row['away'] = out['price']
-                        if 'home' in row and 'draw' in row and 'away' in row:
-                            h2h_bookmakers.append(row)
+                # Build bookmaker list for h2h
+                h2h_bookmakers = []
+                for bk in ev.get('bookmakers', []):
+                    for mkt in bk.get('markets', []):
+                        if mkt.get('key') == 'h2h':
+                            row = {'key': bk.get('key', ''), 'title': bk.get('title', '')}
+                            for out in mkt.get('outcomes', []):
+                                nm = out.get('name')
+                                pr = out.get('price')
+                                if nm == home_team:
+                                    row['home'] = pr
+                                elif nm == 'Draw':
+                                    row['draw'] = pr
+                                else:
+                                    row['away'] = pr
+                            if 'home' in row and 'draw' in row and 'away' in row:
+                                h2h_bookmakers.append(row)
 
-            # Build bookmaker list for totals
-            totals_bookmakers = []
-            totals_point = None
-            for bk in ev.get('bookmakers', []):
-                for mkt in bk.get('markets', []):
-                    if mkt['key'] == 'totals':
-                        row = {'key': bk['key'], 'title': bk['title']}
-                        for out in mkt['outcomes']:
-                            if totals_point is None and 'point' in out:
-                                totals_point = out['point']
-                            if out['name'] == 'Over':
-                                row['over'] = out['price']
-                            elif out['name'] == 'Under':
-                                row['under'] = out['price']
-                        if 'over' in row and 'under' in row:
-                            totals_bookmakers.append(row)
+                # Build bookmaker list for totals
+                totals_bookmakers = []
+                totals_point = None
+                for bk in ev.get('bookmakers', []):
+                    for mkt in bk.get('markets', []):
+                        if mkt.get('key') == 'totals':
+                            row = {'key': bk.get('key', ''), 'title': bk.get('title', '')}
+                            for out in mkt.get('outcomes', []):
+                                if totals_point is None and 'point' in out:
+                                    totals_point = out['point']
+                                if out.get('name') == 'Over':
+                                    row['over'] = out.get('price')
+                                elif out.get('name') == 'Under':
+                                    row['under'] = out.get('price')
+                            if 'over' in row and 'under' in row:
+                                totals_bookmakers.append(row)
 
-            # Best odds & arbitrage for h2h
-            h2h_best, h2h_best_bk, h2h_margin = calc_best_and_arbitrage(
-                ev.get('bookmakers', []), 'h2h')
+                # Best odds & arbitrage for h2h
+                h2h_best, h2h_best_bk, h2h_margin = calc_best_and_arbitrage(
+                    ev.get('bookmakers', []), 'h2h')
 
-            # Best odds & arbitrage for totals
-            t_result = calc_best_and_arbitrage(ev.get('bookmakers', []), 'totals')
-            totals_best, totals_best_bk, totals_margin = t_result[0], t_result[1], t_result[2]
-            if len(t_result) > 3 and t_result[3]:
-                totals_point = t_result[3]
+                # Best odds & arbitrage for totals
+                t_result = calc_best_and_arbitrage(ev.get('bookmakers', []), 'totals')
+                totals_best, totals_best_bk, totals_margin = t_result[0], t_result[1], t_result[2]
+                if len(t_result) > 3 and t_result[3]:
+                    totals_point = t_result[3]
 
-            event_data = {
-                'oddsId': ev['id'],
-                'homeTeam': home_team,
-                'awayTeam': away_team,
-                'commenceTime': ev.get('commence_time', ''),
-                'matchId': None,
-                'h2h': {
-                    'best': h2h_best,
-                    'bestBk': h2h_best_bk,
-                    'bookmakers': h2h_bookmakers[:10],  # limit to 10 bookmakers
-                    'margin': h2h_margin,
-                    'arb': h2h_margin is not None and h2h_margin < 0,
-                },
-                'totals': {
-                    'point': totals_point or 2.5,
-                    'best': totals_best,
-                    'bestBk': totals_best_bk,
-                    'bookmakers': totals_bookmakers[:10],
-                    'margin': totals_margin,
-                    'arb': totals_margin is not None and totals_margin < 0,
+                event_data = {
+                    'oddsId': ev.get('id', ''),
+                    'homeTeam': home_team,
+                    'awayTeam': away_team,
+                    'commenceTime': ev.get('commence_time', ''),
+                    'matchId': None,
+                    'h2h': {
+                        'best': h2h_best,
+                        'bestBk': h2h_best_bk,
+                        'bookmakers': h2h_bookmakers[:10],
+                        'margin': h2h_margin,
+                        'arb': h2h_margin is not None and h2h_margin < 0,
+                    },
+                    'totals': {
+                        'point': totals_point or 2.5,
+                        'best': totals_best,
+                        'bestBk': totals_best_bk,
+                        'bookmakers': totals_bookmakers[:10],
+                        'margin': totals_margin,
+                        'arb': totals_margin is not None and totals_margin < 0,
+                    }
                 }
+                events.append(event_data)
+            except Exception as ev_err:
+                print(f'  skip event in {code}: {ev_err}')
+                continue
+
+        try:
+            match_odds_to_fixtures(events, league_matches)
+            matched = sum(1 for e in events if e['matchId'])
+            print(f'  {len(events)} events, {matched} matched to fixtures')
+
+            arbs = sum(1 for e in events if e['h2h']['arb'] or e['totals']['arb'])
+            if arbs:
+                print(f'  ARBITRAGE FOUND: {arbs} events!')
+
+            odds_data = {
+                'code': code,
+                'sportKey': sport_key,
+                'updated': datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
+                'events': events
             }
-            events.append(event_data)
+            filepath = os.path.join(DATA_DIR, f'odds_{code}.json')
+            with open(filepath, 'w', encoding='utf-8') as f:
+                json.dump(odds_data, f, ensure_ascii=False)
+            print(f'  Saved to {filepath}')
+        except Exception as save_err:
+            print(f'  Error saving odds for {code}: {save_err}')
 
-        # Match to fixtures
-        match_odds_to_fixtures(events, league_matches)
-        matched = sum(1 for e in events if e['matchId'])
-        print(f'  {len(events)} events, {matched} matched to fixtures')
-
-        # Check for arbitrage
-        arbs = sum(1 for e in events if e['h2h']['arb'] or e['totals']['arb'])
-        if arbs:
-            print(f'  ARBITRAGE FOUND: {arbs} events!')
-
-        # Save
-        odds_data = {
-            'code': code,
-            'sportKey': sport_key,
-            'updated': datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
-            'events': events
-        }
-        filepath = os.path.join(DATA_DIR, f'odds_{code}.json')
-        with open(filepath, 'w', encoding='utf-8') as f:
-            json.dump(odds_data, f, ensure_ascii=False)
-        print(f'  Saved to {filepath}')
-
-        time.sleep(2)
+        time.sleep(5)
 
 def get_odds_leagues():
     """Determine which leagues to fetch odds for based on current hour."""
@@ -377,7 +383,7 @@ def fetch_rpl():
     except Exception as e:
         print(f'  RPL: Error fetching matches: {e}')
 
-    time.sleep(7)
+    time.sleep(10)
 
     # 2. Standings
     try:
@@ -407,7 +413,7 @@ def fetch_rpl():
     except Exception as e:
         print(f'  RPL: Error fetching standings: {e}')
 
-    time.sleep(7)
+    time.sleep(10)
 
     # 3. Recent finished matches
     try:
@@ -500,7 +506,7 @@ def main():
         except Exception as e:
             print(f'  Error fetching matches: {e}')
 
-        time.sleep(7)
+        time.sleep(10)
 
         # 2. Standings
         try:
@@ -527,7 +533,7 @@ def main():
         except Exception as e:
             print(f'  Error fetching standings: {e}')
 
-        time.sleep(7)
+        time.sleep(10)
 
         # 3. Recent finished matches
         try:
@@ -545,7 +551,7 @@ def main():
         except Exception as e:
             print(f'  Error fetching finished: {e}')
 
-        time.sleep(7)
+        time.sleep(10)
 
         # Save
         filepath = os.path.join(DATA_DIR, f'{code}.json')
