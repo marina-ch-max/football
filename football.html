@@ -483,15 +483,25 @@
         const byId = oddsData.events.find(e => e.matchId === match.id);
         if (byId) return byId;
         const matchDate = new Date(match.utcDate).getTime();
-        const hName = match.homeTeam.name.toLowerCase();
-        const aName = match.awayTeam.name.toLowerCase();
+        // Нормализация суффиксов (FC/CF/SC/SK/FK/AFC/SSC/AC) — как в Python pipeline
+        const normalize = (s) => {
+            let n = (s || '').toLowerCase().trim();
+            const suffixes = [' fc', ' cf', ' sc', ' sk', ' fk', ' afc', ' ssc', ' ac'];
+            for (const suf of suffixes) {
+                if (n.endsWith(suf)) { n = n.slice(0, -suf.length).trim(); break; }
+            }
+            return n;
+        };
+        const hName = normalize(match.homeTeam.name);
+        const aName = normalize(match.awayTeam.name);
         return oddsData.events.find(e => {
             const oddsDate = new Date(e.commenceTime).getTime();
             if (Math.abs(matchDate - oddsDate) > 86400000) return false;
-            const oh = e.homeTeam.toLowerCase();
-            const oa = e.awayTeam.toLowerCase();
-            return (oh.includes(hName) || hName.includes(oh)) &&
-                   (oa.includes(aName) || aName.includes(oa));
+            const oh = normalize(e.homeTeam);
+            const oa = normalize(e.awayTeam);
+            // Точное совпадение ИЛИ одно имя — префикс другого (не произвольный includes)
+            const matchNames = (a, b) => a === b || a.startsWith(b + ' ') || b.startsWith(a + ' ');
+            return matchNames(oh, hName) && matchNames(oa, aName);
         }) || null;
     }
 
@@ -516,14 +526,22 @@
         return poisson(hLam, x) * poisson(aLam, y) * dixonColesRho(x, y, hLam, aLam, rho);
     }
 
-    // Score matrix up to maxGoals
+    // Score matrix up to maxGoals (нормирована: сумма всех ячеек = 1 после DC-коррекции)
     function scoreMatrix(hLam, aLam, rho, maxGoals) {
         const m = [];
+        let sum = 0;
         for (let h = 0; h <= maxGoals; h++) {
             m[h] = [];
             for (let a = 0; a <= maxGoals; a++) {
-                m[h][a] = dcProb(h, a, hLam, aLam, rho);
+                const p = dcProb(h, a, hLam, aLam, rho);
+                m[h][a] = p;
+                sum += p;
             }
+        }
+        if (sum > 0) {
+            for (let h = 0; h <= maxGoals; h++)
+                for (let a = 0; a <= maxGoals; a++)
+                    m[h][a] /= sum;
         }
         return m;
     }
@@ -821,7 +839,6 @@
 
         let totalHomeG = 0, totalAwayG = 0, totalMatchCount = 0;
         for (const m of finMatches) { totalHomeG += m.homeGoals; totalAwayG += m.awayGoals; totalMatchCount++; }
-        const HOME_ADV = totalMatchCount > 0 && totalAwayG > 0 ? totalHomeG / totalAwayG : 1.25;
 
         let hHomeGF = 0, hHomeGA = 0, hHomeCount = 0, aAwayGF = 0, aAwayGA = 0, aAwayCount = 0;
         for (const m of finMatches) {
@@ -830,15 +847,24 @@
         }
         const avgHomeGF = totalMatchCount > 0 ? totalHomeG / totalMatchCount : avgGoals;
         const avgAwayGF = totalMatchCount > 0 ? totalAwayG / totalMatchCount : avgGoals;
+        // Shrinkage: при малом числе матчей тянем силу к 1 (лигe среднее). k=5 «виртуальных» средних игр.
+        const shrink = (val, n) => { const k = 5; return (n * val + k * 1) / (n + k); };
         let hAttack = 1, hDefense = 1, aAttack = 1, aDefense = 1;
-        if (hHomeCount > 0) { hAttack = (hHomeGF / hHomeCount) / avgHomeGF; hDefense = (hHomeGA / hHomeCount) / avgAwayGF; }
-        if (aAwayCount > 0) { aAttack = (aAwayGF / aAwayCount) / avgAwayGF; aDefense = (aAwayGA / aAwayCount) / avgHomeGF; }
+        if (hHomeCount > 0) {
+            hAttack = shrink((hHomeGF / hHomeCount) / avgHomeGF, hHomeCount);
+            hDefense = shrink((hHomeGA / hHomeCount) / avgAwayGF, hHomeCount);
+        }
+        if (aAwayCount > 0) {
+            aAttack = shrink((aAwayGF / aAwayCount) / avgAwayGF, aAwayCount);
+            aDefense = shrink((aAwayGA / aAwayCount) / avgHomeGF, aAwayCount);
+        }
 
         const elo = calcElo(finMatches);
         const hElo = elo[home.id] || 1500, aElo = elo[away.id] || 1500;
         const eloAdj = 1 + (hElo - aElo) / 4000;
-        const homeXG = avgGoals * hAttack * aDefense * HOME_ADV * eloAdj;
-        const awayXG = avgGoals * aAttack * hDefense / eloAdj;
+        // Используем avgHomeGF / avgAwayGF (уже содержат домашнее преимущество лиги), не множим ещё раз на HOME_ADV
+        const homeXG = avgHomeGF * hAttack * aDefense * eloAdj;
+        const awayXG = avgAwayGF * aAttack * hDefense / eloAdj;
         const rho = estimateRho(avgGoals);
         const outcomes = prob1X2(homeXG, awayXG, rho);
 
@@ -856,25 +882,36 @@
             const ps = [outcomes.p1, outcomes.pX, outcomes.p2];
             const os = [best.home, best.draw, best.away];
             const labels = ['\u041F1', '\u0425', '\u041F2'];
+            // Нормированные рыночные вероятности (убираем overround букмекеров)
+            let invSum = 0;
+            for (const o of os) if (o > 0) invSum += 1 / o;
             for (let i = 0; i < 3; i++) {
-                if (os[i] > 0) {
+                if (os[i] > 0 && invSum > 0) {
+                    const pMarket = (1 / os[i]) / invSum;
                     const ev = ps[i] * os[i] - 1;
                     if (ev > evBest) { evBest = ev; evLabel = labels[i]; }
-                    if (ev > 0.08) hasValue = true;
+                    // Value: модель оценивает вероятность на 8+ п.п. выше честной рыночной И EV > 3%
+                    if (ps[i] - pMarket > 0.08 && ev > 0.03) hasValue = true;
                 }
             }
         }
 
         // Verdict checks (must match renderVerdictHTML exactly)
+        // 3 НЕЗАВИСИМЫХ фактора (убрали скоррелированные Elo/H2H/noTrap):
+        //  1. Уверенность модели (maxP > 0.55)
+        //  2. Value bet (уже учитывает рынок)
+        //  3. Асимметрия формы (фаворит в форме, андердог — нет)
         const maxP = Math.max(outcomes.p1, outcomes.pX, outcomes.p2);
         const favForm = outcomes.p1 >= outcomes.p2 ? homeFormAll : awayFormAll;
+        const undForm = outcomes.p1 >= outcomes.p2 ? awayFormAll : homeFormAll;
         const wins = favForm.filter(r => r === 'W').length;
+        const undWins = undForm.filter(r => r === 'W').length;
+        const formGap = wins - undWins;
         let passed = 0;
         if (maxP > 0.55) passed++;
         if (hasValue) passed++;
-        if (wins >= 3) passed++;
-        if (Math.abs(hElo - aElo) > 80) passed++;
-        // H2H: favorite must have won 2+ of last 3 h2h matches
+        if (formGap >= 2) passed++;
+        // H2H оставляем только в детальном рендере для справки, не считаем
         let h2hOk = false;
         if (h2hAll.length >= 2) {
             const favId = outcomes.p1 >= outcomes.p2 ? home.id : away.id;
@@ -885,13 +922,11 @@
             }
             h2hOk = favWins >= 2;
         }
-        if (h2hOk) passed++;
-        const noTrap = !(maxP < 0.45 && Math.min(outcomes.p1, outcomes.pX, outcomes.p2) > 0.20);
-        if (noTrap) passed++;
+        // h2hOk и noTrap больше НЕ учитываются в verdict — они скоррелированы с maxP/формой.
 
         let verdictClass, verdictLabel;
-        if (passed >= 4 && hasValue) { verdictClass = 'v-bet'; verdictLabel = '\u0421\u0422\u0410\u0412\u042c'; }
-        else if (passed >= 3) { verdictClass = 'v-caution'; verdictLabel = '\u041E\u0421\u0422\u041E\u0420.'; }
+        if (passed === 3 && hasValue) { verdictClass = 'v-bet'; verdictLabel = '\u0421\u0422\u0410\u0412\u042c'; }
+        else if (passed >= 2) { verdictClass = 'v-caution'; verdictLabel = '\u041E\u0421\u0422\u041E\u0420.'; }
         else { verdictClass = 'v-skip'; verdictLabel = '\u041F\u0420\u041E\u041F.'; }
 
         const favLabel = outcomes.p1 >= outcomes.p2 ? home.name : (outcomes.p2 > outcomes.p1 ? away.name : '\u041D\u0438\u0447\u044C\u044F');
@@ -1640,61 +1675,50 @@
         const maxP = Math.max(outcomes.p1, outcomes.pX, outcomes.p2);
         const favLabel = outcomes.p1 >= outcomes.p2 ? '\u041F\u043E\u0431\u0435\u0434\u0430 1' : outcomes.p2 > outcomes.p1 ? '\u041F\u043E\u0431\u0435\u0434\u0430 2' : '\u041D\u0438\u0447\u044C\u044F';
 
-        // 1. Model > 55%
+        // 1. Уверенность модели
         checks.push({ pass: maxP > 0.55, text: `\u041C\u043E\u0434\u0435\u043B\u044C \u0434\u0430\u0451\u0442 ${Math.round(maxP*100)}% \u043D\u0430 ${favLabel}` });
 
-        // 2. Value bet found
+        // 2. Value bet с учётом нормированного рынка
         let hasValue = false;
+        let valueText = 'Value bet \u043D\u0430\u0439\u0434\u0435\u043D';
         if (matchOdds && matchOdds.h2h && matchOdds.h2h.best) {
             const best = matchOdds.h2h.best;
             const ps = [outcomes.p1, outcomes.pX, outcomes.p2];
             const os = [best.home, best.draw, best.away];
+            let invSum = 0;
+            for (const o of os) if (o > 0) invSum += 1 / o;
             for (let i = 0; i < 3; i++) {
-                if (os[i] > 0 && ps[i] * os[i] - 1 > 0.08) { hasValue = true; break; }
+                if (os[i] > 0 && invSum > 0) {
+                    const pMarket = (1 / os[i]) / invSum;
+                    const ev = ps[i] * os[i] - 1;
+                    if (ps[i] - pMarket > 0.08 && ev > 0.03) { hasValue = true; break; }
+                }
             }
         }
-        checks.push({ pass: hasValue, text: 'Value bet \u043D\u0430\u0439\u0434\u0435\u043D (EV > 8%)' });
+        checks.push({ pass: hasValue, text: valueText + ' (\u043C\u043E\u0434\u0435\u043B\u044C > \u0440\u044B\u043D\u043A\u0430 \u043D\u0430 8\u043F.\u043F.)' });
 
-        // 3. Favorite form ≥3 wins
+        // 3. Асимметрия формы фаворит vs андердог
         const favForm = outcomes.p1 >= outcomes.p2 ? homeFormAll : awayFormAll;
+        const undForm = outcomes.p1 >= outcomes.p2 ? awayFormAll : homeFormAll;
         const wins = favForm.filter(r => r === 'W').length;
-        checks.push({ pass: wins >= 3, text: `\u0424\u043E\u0440\u043C\u0430 \u0444\u0430\u0432\u043E\u0440\u0438\u0442\u0430: ${wins} \u043F\u043E\u0431\u0435\u0434 \u0438\u0437 ${favForm.length}` });
-
-        // 4. Elo diff > 80
-        const eloDiff = Math.abs(hElo - aElo);
-        checks.push({ pass: eloDiff > 80, text: `\u0420\u0430\u0437\u043D\u0438\u0446\u0430 Elo: ${Math.round(eloDiff)}` });
-
-        // 5. H2H confirms (≥2 of 3)
-        let h2hOk = false;
-        if (h2hMatches && h2hMatches.length >= 2) {
-            const favId = outcomes.p1 >= outcomes.p2 ? homeId : awayId;
-            let favWins = 0;
-            for (const m of h2hMatches.slice(0, 3)) {
-                if (m.homeTeam.id === favId && m.homeGoals > m.awayGoals) favWins++;
-                else if (m.awayTeam.id === favId && m.awayGoals > m.homeGoals) favWins++;
-            }
-            h2hOk = favWins >= 2;
-        }
-        checks.push({ pass: h2hOk, text: 'H2H \u043F\u043E\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0430\u0435\u0442 \u0444\u0430\u0432\u043E\u0440\u0438\u0442\u0430' });
-
-        // 6. No trap (not 40/30/30)
-        const noTrap = !(maxP < 0.45 && Math.min(outcomes.p1, outcomes.pX, outcomes.p2) > 0.20);
-        checks.push({ pass: noTrap, text: '\u041D\u0435\u0442 \u043B\u043E\u0432\u0443\u0448\u043A\u0438 (40/30/30)' });
+        const undWins = undForm.filter(r => r === 'W').length;
+        const formGap = wins - undWins;
+        checks.push({ pass: formGap >= 2, text: `\u0424\u043E\u0440\u043C\u0430: \u0444\u0430\u0432\u043E\u0440\u0438\u0442 ${wins}\u043F, \u0430\u043D\u0434\u0435\u0440\u0434\u043E\u0433 ${undWins}\u043F (\u0440\u0430\u0437\u0440\u044B\u0432 \u2265 2)` });
 
         const passed = checks.filter(c => c.pass).length;
         let cls, title, subtitle;
-        if (passed >= 4 && hasValue) {
+        if (passed === 3 && hasValue) {
             cls = 'verdict-bet';
             title = '\uD83D\uDFE2 \u0421\u0422\u0410\u0412\u042C';
-            subtitle = `${passed} \u0438\u0437 6 \u0444\u0430\u043A\u0442\u043E\u0440\u043E\u0432 \u2014 \u0441\u0438\u0433\u043D\u0430\u043B \u043D\u0430 ${favLabel}`;
-        } else if (passed >= 3) {
+            subtitle = `\u0412\u0441\u0435 3 \u0444\u0430\u043A\u0442\u043E\u0440\u0430 \u2014 \u0441\u0438\u0433\u043D\u0430\u043B \u043D\u0430 ${favLabel}`;
+        } else if (passed >= 2) {
             cls = 'verdict-caution';
             title = '\uD83D\uDFE1 \u041E\u0421\u0422\u041E\u0420\u041E\u0416\u041D\u041E';
-            subtitle = `${passed} \u0438\u0437 6 \u0444\u0430\u043A\u0442\u043E\u0440\u043E\u0432 \u2014 \u0440\u0438\u0441\u043A \u043F\u043E\u0432\u044B\u0448\u0435\u043D`;
+            subtitle = `${passed} \u0438\u0437 3 \u0444\u0430\u043A\u0442\u043E\u0440\u043E\u0432 \u2014 \u0440\u0438\u0441\u043A \u043F\u043E\u0432\u044B\u0448\u0435\u043D`;
         } else {
             cls = 'verdict-skip';
             title = '\uD83D\uDD34 \u041F\u0420\u041E\u041F\u0423\u0421\u0422\u0418';
-            subtitle = `${passed} \u0438\u0437 6 \u0444\u0430\u043A\u0442\u043E\u0440\u043E\u0432 \u2014 \u043D\u0435\u0434\u043E\u0441\u0442\u0430\u0442\u043E\u0447\u043D\u043E \u0434\u0430\u043D\u043D\u044B\u0445`;
+            subtitle = `${passed} \u0438\u0437 3 \u0444\u0430\u043A\u0442\u043E\u0440\u043E\u0432 \u2014 \u043D\u0435\u0434\u043E\u0441\u0442\u0430\u0442\u043E\u0447\u043D\u043E`;
         }
 
         const checklistHTML = checks.map(c =>
