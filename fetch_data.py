@@ -170,7 +170,7 @@ def fetch_odds(leagues_to_fetch):
 
         try:
             raw = odds_api_get(
-                f'/sports/{sport_key}/odds?regions=eu,uk&markets=h2h,totals&oddsFormat=decimal'
+                f'/sports/{sport_key}/odds?regions=eu,uk&markets=h2h,totals,btts&oddsFormat=decimal'
             )
         except Exception as e:
             print(f'  Error fetching odds for {code}: {e}')
@@ -228,6 +228,35 @@ def fetch_odds(leagues_to_fetch):
                             if 'over' in row and 'under' in row:
                                 totals_bookmakers.append(row)
 
+                # Build bookmaker list for BTTS (both teams to score)
+                btts_bookmakers = []
+                btts_best_yes = 0
+                btts_best_no = 0
+                btts_best_yes_bk = ''
+                btts_best_no_bk = ''
+                for bk in ev.get('bookmakers', []):
+                    for mkt in bk.get('markets', []):
+                        if mkt.get('key') == 'btts':
+                            row = {'key': bk.get('key', ''), 'title': bk.get('title', '')}
+                            for out in mkt.get('outcomes', []):
+                                nm = out.get('name', '').lower()
+                                pr = out.get('price')
+                                if nm == 'yes' and pr:
+                                    row['yes'] = pr
+                                    if pr > btts_best_yes:
+                                        btts_best_yes = pr
+                                        btts_best_yes_bk = bk.get('title', '')
+                                elif nm == 'no' and pr:
+                                    row['no'] = pr
+                                    if pr > btts_best_no:
+                                        btts_best_no = pr
+                                        btts_best_no_bk = bk.get('title', '')
+                            if 'yes' in row and 'no' in row:
+                                btts_bookmakers.append(row)
+                btts_margin = None
+                if btts_best_yes > 0 and btts_best_no > 0:
+                    btts_margin = 1/btts_best_yes + 1/btts_best_no - 1
+
                 # Best odds & arbitrage for h2h
                 h2h_best, h2h_best_bk, h2h_margin = calc_best_and_arbitrage(
                     ev.get('bookmakers', []), 'h2h')
@@ -258,6 +287,13 @@ def fetch_odds(leagues_to_fetch):
                         'bookmakers': totals_bookmakers[:10],
                         'margin': totals_margin,
                         'arb': totals_margin is not None and totals_margin < 0,
+                    },
+                    'btts': {
+                        'best': {'yes': btts_best_yes, 'no': btts_best_no},
+                        'bestBk': {'yes': btts_best_yes_bk, 'no': btts_best_no_bk},
+                        'bookmakers': btts_bookmakers[:10],
+                        'margin': btts_margin,
+                        'arb': btts_margin is not None and btts_margin < 0,
                     }
                 }
                 events.append(event_data)

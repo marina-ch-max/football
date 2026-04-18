@@ -1390,6 +1390,7 @@
         let html = '';
         const h2h = odds.h2h || {};
         const totals = odds.totals || {};
+        const btts = odds.btts || {};
 
         // === ARBITRAGE / VALUE BETS ALERTS ===
         let arbHTML = '';
@@ -1533,6 +1534,29 @@
             ${h2hTableHTML && regionMode === 'ru' ? '<div style="margin-bottom:8px;padding:10px 14px;background:#2a2000;border:1px solid #aa8800;border-radius:8px;font-size:12px;color:#eec600;line-height:1.5">\u26A0\uFE0F \u041A\u043E\u044D\u0444\u0444\u0438\u0446\u0438\u0435\u043D\u0442\u044B \u043E\u0442 \u043C\u0435\u0436\u0434\u0443\u043D\u0430\u0440\u043E\u0434\u043D\u044B\u0445 \u0431\u0443\u043A\u043C\u0435\u043A\u0435\u0440\u043E\u0432. \u0414\u043B\u044F \u0441\u0442\u0430\u0432\u043E\u043A \u0438\u0441\u043F\u043E\u043B\u044C\u0437\u0443\u0439\u0442\u0435 \u043B\u0438\u0446\u0435\u043D\u0437\u0438\u0440\u043E\u0432\u0430\u043D\u043D\u044B\u0445 \u0440\u043E\u0441\u0441\u0438\u0439\u0441\u043A\u0438\u0445 \u0431\u0443\u043A\u043C\u0435\u043A\u0435\u0440\u043E\u0432 (\u0424\u043E\u043D\u0431\u0435\u0442, \u041B\u0438\u0433\u0430 \u0421\u0442\u0430\u0432\u043E\u043A, 1\u0445\u0421\u0442\u0430\u0432\u043A\u0430, Winline).</div>' : ''}
             ${h2hTableHTML ? '<div style="margin-bottom:16px">' + h2hTableHTML + '</div>' : ''}
             ${totalsTableHTML}
+            ${(() => {
+                if (!btts.bookmakers || btts.bookmakers.length === 0) return '';
+                const rows = btts.bookmakers.map(bk => {
+                    const yBest = btts.best && bk.yes >= btts.best.yes ? ' odds-best' : '';
+                    const nBest = btts.best && bk.no >= btts.best.no ? ' odds-best' : '';
+                    return `<tr><td>${bk.title}</td><td class="${yBest}">${bk.yes.toFixed(2)}</td><td class="${nBest}">${bk.no.toFixed(2)}</td></tr>`;
+                }).join('');
+                const marginLine = (btts.margin !== null && btts.margin !== undefined && !btts.arb)
+                    ? `<div class="arb-normal">\u041C\u0430\u0440\u0436\u0430 \u0431\u0443\u043A\u043C\u0435\u043A\u0435\u0440\u043E\u0432: ${(btts.margin*100).toFixed(1)}%</div>` : '';
+                return `<div style="margin-top:14px;font-size:12px;color:var(--text2);margin-bottom:4px">\u041E\u0431\u0435 \u0437\u0430\u0431\u044C\u044E\u0442 (BTTS)</div>
+                <table class="odds-table">
+                    <tr><th>\u0411\u0443\u043A\u043C\u0435\u043A\u0435\u0440</th><th>\u0414\u0430</th><th>\u041D\u0435\u0442</th></tr>
+                    ${rows}
+                    <tr class="odds-best-row">
+                        <td>\u041B\u0443\u0447\u0448\u0438\u0435</td>
+                        <td class="odds-best">${btts.best.yes.toFixed(2)}</td>
+                        <td class="odds-best">${btts.best.no.toFixed(2)}</td>
+                    </tr>
+                </table>${marginLine}`;
+            })()}
+            <div style="margin-top:16px;padding:12px 14px;background:#15202a;border:1px solid #2a4a5a;border-radius:8px;font-size:12px;line-height:1.6;color:var(--text2)">
+                \u{1F4A1} <b>\u0423\u0433\u043B\u043E\u0432\u044B\u0435, \u0436\u0451\u043B\u0442\u044B\u0435 \u043A\u0430\u0440\u0442\u043E\u0447\u043A\u0438, \u0448\u0442\u0430\u043D\u0433\u0438</b> \u0432 the-odds-api (\u043D\u0430\u0448 \u0438\u0441\u0442\u043E\u0447\u043D\u0438\u043A) \u043D\u0435 \u043F\u0440\u0435\u0434\u0443\u0441\u043C\u043E\u0442\u0440\u0435\u043D\u044B \u043A\u0430\u043A \u043E\u0442\u0434\u0435\u043B\u044C\u043D\u044B\u0439 \u0440\u044B\u043D\u043E\u043A. \u0421\u043C\u043E\u0442\u0440\u0438 \u0438\u0445 \u043D\u0430\u043F\u0440\u044F\u043C\u0443\u044E \u0432 \u0424\u043E\u043D\u0431\u0435\u0442 \u2014 \u043A\u043D\u043E\u043F\u043A\u0430 \u043D\u0430\u0434 \u0441\u0442\u0440\u043E\u043A\u043E\u0439 \u043C\u0430\u0442\u0447\u0430.
+            </div>
         </div>`;
 
         return html;
